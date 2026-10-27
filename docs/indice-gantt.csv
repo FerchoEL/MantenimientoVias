@@ -1,0 +1,129 @@
+﻿id,etapa,actividad,fecha_prevista,dias,estado_reportado,avance_reportado,semana
+MV-001,Base y estructura,Auditar proyecto Laravel 13 y dependencias instaladas,22/10/2026,0.5,Completada,1,1
+MV-002,Base y estructura,"Verificar Git, convenciones y estructura del repositorio",22/10/2026,0.5,Completada,1,1
+MV-003,Base y estructura,Configurar autenticación y acceso al panel,23/10/2026,0.5,En proceso,—,1
+MV-004,Base y estructura,Diseñar roles funcionales,23/10/2026,0.5,Completada,1,1
+MV-005,Base y estructura,Implementar permisos base Spatie,26/10/2026,0.5,Completada,1,1
+MV-006,Base y estructura,Diseñar esquema Cliente y Planta,26/10/2026,0.5,Por iniciar,—,1
+MV-007,Base y estructura,Crear migraciones de Cliente y Planta,27/10/2026,0.5,Por iniciar,—,1
+MV-008,Base y estructura,Implementar modelos y relaciones Cliente-Planta,27/10/2026,0.5,Por iniciar,—,1
+MV-009,Base y estructura,Crear formularios y listados de Clientes,28/10/2026,0.5,Por iniciar,—,1
+MV-010,Base y estructura,Crear formularios y listados de Plantas,28/10/2026,0.5,Por iniciar,—,1
+MV-011,Base y estructura,Modelar Vías y Cambios al nivel de Planta,29/10/2026,0.5,Por iniciar,—,2
+MV-012,Base y estructura,Crear migraciones y modelos de Vías y Cambios,29/10/2026,0.5,Por iniciar,—,2
+MV-013,Base y estructura,Modelar Tramos y delimitadores,30/10/2026,0.5,Por iniciar,—,2
+MV-014,Base y estructura,Implementar migración y modelo de Tramos,30/10/2026,0.5,Por iniciar,—,2
+MV-015,Base y estructura,Implementar mantenimiento de Vías,02/11/2026,0.5,Por iniciar,—,2
+MV-016,Base y estructura,Implementar mantenimiento de Cambios,02/11/2026,0.5,Por iniciar,—,2
+MV-017,Base y estructura,Implementar Tramos por Vía,03/11/2026,0.5,Por iniciar,—,2
+MV-018,Base y estructura,Agregar carga y consulta de croquis,03/11/2026,0.5,Por iniciar,—,2
+MV-019,Base y estructura,Probar relaciones y seguridad del Core,04/11/2026,0.5,Por iniciar,—,2
+MV-020,Base y estructura,Demostrar etapa 1 y documentar avance,04/11/2026,0.5,Por iniciar,—,2
+MV-021,Servicios y programa,Modelar Servicio de Mantenimiento,05/11/2026,0.5,Por iniciar,—,3
+MV-022,Servicios y programa,Crear migración y modelo de Servicios,05/11/2026,0.5,Por iniciar,—,3
+MV-023,Servicios y programa,Construir recurso de Servicios,06/11/2026,0.5,Por iniciar,—,3
+MV-024,Servicios y programa,Validar transición de estados de Servicio,06/11/2026,0.5,Por iniciar,—,3
+MV-025,Servicios y programa,Diseñar asignaciones Supervisor–Servicio,09/11/2026,0.5,Por iniciar,—,3
+MV-026,Servicios y programa,Implementar asignaciones con vigencia,09/11/2026,0.5,Por iniciar,—,3
+MV-027,Servicios y programa,Aplicar autorización por servicio vigente,10/11/2026,0.5,Por iniciar,—,3
+MV-028,Servicios y programa,Probar escenarios simultáneos entre plantas,10/11/2026,0.5,Por iniciar,—,3
+MV-029,Servicios y programa,Modelar periodos de servicio,11/11/2026,0.5,Por iniciar,—,3
+MV-030,Servicios y programa,Implementar apertura y cierre base de periodos,11/11/2026,0.5,Por iniciar,—,3
+MV-031,Servicios y programa,Crear categorías de actividad,12/11/2026,0.5,Por iniciar,—,4
+MV-032,Servicios y programa,"Crear conceptos, subopciones y unidades",12/11/2026,0.5,Por iniciar,—,4
+MV-033,Servicios y programa,Construir pantallas de catálogo,13/11/2026,0.5,Por iniciar,—,4
+MV-034,Servicios y programa,Implementar programa de trabajo,13/11/2026,0.5,Por iniciar,—,4
+MV-035,Servicios y programa,Construir captura de actividades programadas,17/11/2026,0.5,Por iniciar,—,4
+MV-036,Servicios y programa,Validar estados del programa y reprogramación,17/11/2026,0.5,Por iniciar,—,4
+MV-037,Servicios y programa,Preparar muestra temprana del PDF,18/11/2026,0.5,Por iniciar,—,4
+MV-038,Servicios y programa,Revisar con operación y registrar definiciones,18/11/2026,0.5,Por iniciar,—,4
+MV-039,Captura y evidencias,Definir registro operativo de actividad,19/11/2026,0.5,Por iniciar,—,5
+MV-040,Captura y evidencias,Migrar actividades y relaciones,19/11/2026,0.5,Por iniciar,—,5
+MV-041,Captura y evidencias,Construir formulario de captura,20/11/2026,0.5,Por iniciar,—,5
+MV-042,Captura y evidencias,Validar ubicación Tramo o Cambio,20/11/2026,0.5,Por iniciar,—,5
+MV-043,Captura y evidencias,Agregar origen y motivo de desviación,23/11/2026,0.5,Por iniciar,—,5
+MV-044,Captura y evidencias,Soportar ejecución de varios días,23/11/2026,0.5,Por iniciar,—,5
+MV-045,Captura y evidencias,Vincular actividad ejecutada con programa,24/11/2026,0.5,Por iniciar,—,5
+MV-046,Captura y evidencias,"Validar cantidad, estado y obligatoriedad",24/11/2026,0.5,Por iniciar,—,5
+MV-047,Captura y evidencias,Diseñar modelo y ruta de evidencias,25/11/2026,0.5,Por iniciar,—,5
+MV-048,Captura y evidencias,Implementar carga múltiple de fotografías,25/11/2026,0.5,Por iniciar,—,5
+MV-049,Captura y evidencias,Procesar orientación y dimensiones,26/11/2026,0.5,Por iniciar,—,6
+MV-050,Captura y evidencias,Convertir WebP y generar miniaturas,26/11/2026,0.5,Por iniciar,—,6
+MV-051,Captura y evidencias,Preparar disco GCS con Laravel Filesystem,27/11/2026,0.5,Por iniciar,—,6
+MV-052,Captura y evidencias,Probar consulta de imágenes y desempeño,27/11/2026,0.5,Por iniciar,—,6
+MV-053,Captura y evidencias,Exigir evidencia para completar actividad,30/11/2026,0.5,Por iniciar,—,6
+MV-054,Captura y evidencias,Modelar hallazgos y fecha de detección,30/11/2026,0.5,Por iniciar,—,6
+MV-055,Captura y evidencias,Crear formulario básico de hallazgos,01/12/2026,0.5,Por iniciar,—,6
+MV-056,Captura y evidencias,Implementar fotos de hallazgos,01/12/2026,0.5,Por iniciar,—,6
+MV-057,Captura y evidencias,Pruebas integrales de captura móvil,02/12/2026,0.5,Por iniciar,—,6
+MV-058,Captura y evidencias,Demostrar captura con evidencias,02/12/2026,0.5,Por iniciar,—,6
+MV-059,Inventario,Diseñar catálogo global de materiales,03/12/2026,0.5,Por iniciar,—,7
+MV-060,Inventario,Implementar alta de material restringida,03/12/2026,0.5,Por iniciar,—,7
+MV-061,Inventario,Modelar material habilitado por planta,04/12/2026,0.5,Por iniciar,—,7
+MV-062,Inventario,Construir habilitación Nuevo/Recobro,04/12/2026,0.5,Por iniciar,—,7
+MV-063,Inventario,Diseñar movimiento de inventario auditable,07/12/2026,0.5,Por iniciar,—,7
+MV-064,Inventario,Implementar entrada inicial trazable,07/12/2026,0.5,Por iniciar,—,7
+MV-065,Inventario,Implementar entradas de inventario,08/12/2026,0.5,Por iniciar,—,7
+MV-066,Inventario,Implementar salidas ligadas a actividad,08/12/2026,0.5,Por iniciar,—,7
+MV-067,Inventario,Agregar control transaccional de concurrencia,09/12/2026,0.5,Por iniciar,—,7
+MV-068,Inventario,Bloquear existencias negativas,09/12/2026,0.5,Por iniciar,—,7
+MV-069,Inventario,Implementar ajustes autorizados,10/12/2026,0.5,Por iniciar,—,8
+MV-070,Inventario,Implementar sustitución con recobro opcional,10/12/2026,0.5,Por iniciar,—,8
+MV-071,Inventario,Implementar instalación de faltante,11/12/2026,0.5,Por iniciar,—,8
+MV-072,Inventario,Restringir movimientos por planta,11/12/2026,0.5,Por iniciar,—,8
+MV-073,Inventario,Diseñar inventario del corte por periodo,14/12/2026,0.5,Por iniciar,—,8
+MV-074,Inventario,Implementar cierre y continuidad de saldos,14/12/2026,0.5,Por iniciar,—,8
+MV-075,Inventario,Agregar mínimos y alertas sencillas,15/12/2026,0.5,Por iniciar,—,8
+MV-076,Inventario,Crear pantalla de existencia y movimientos,15/12/2026,0.5,Por iniciar,—,8
+MV-077,Inventario,Probar corrección y no borrado del histórico,16/12/2026,0.5,Por iniciar,—,8
+MV-078,Inventario,Demostrar circuito de inventario,16/12/2026,0.5,Por iniciar,—,8
+MV-079,Revisión y reporte,Completar seguimiento de hallazgos,17/12/2026,0.5,Por iniciar,—,9
+MV-080,Revisión y reporte,Diseñar reporte único por periodo,17/12/2026,0.5,Por iniciar,—,9
+MV-081,Revisión y reporte,Implementar envío de corte a revisión,18/12/2026,0.5,Por iniciar,—,9
+MV-082,Revisión y reporte,Implementar bandeja de revisión de Esteban,18/12/2026,0.5,Por iniciar,—,9
+MV-083,Revisión y reporte,Construir checklist de actividades relevantes,21/12/2026,0.5,Por iniciar,—,9
+MV-084,Revisión y reporte,Construir checklist de hallazgos,21/12/2026,0.5,Por iniciar,—,9
+MV-085,Revisión y reporte,Seleccionar evidencias para el PDF,22/12/2026,0.5,Por iniciar,—,9
+MV-086,Revisión y reporte,Implementar comentarios y correcciones,22/12/2026,0.5,Por iniciar,—,9
+MV-087,Revisión y reporte,Implementar reenvío y bitácora,23/12/2026,0.5,Por iniciar,—,9
+MV-088,Revisión y reporte,Definir folio único y estable,23/12/2026,0.5,Por iniciar,—,9
+MV-089,Revisión y reporte,Construir plantilla PDF: portada y croquis,24/12/2026,0.5,Por iniciar,—,10
+MV-090,Revisión y reporte,Construir sección actividades y fotos,24/12/2026,0.5,Por iniciar,—,10
+MV-091,Revisión y reporte,Construir sección hallazgos y evidencias,28/12/2026,0.5,Por iniciar,—,10
+MV-092,Revisión y reporte,Construir tabla de inventario por corte,28/12/2026,0.5,Por iniciar,—,10
+MV-093,Revisión y reporte,Implementar aprobación y archivo inmutable,29/12/2026,0.5,Por iniciar,—,10
+MV-094,Revisión y reporte,Construir historial y descarga según permisos,29/12/2026,0.5,Por iniciar,—,10
+MV-095,Revisión y reporte,Validar decisiones pendientes del formato,30/12/2026,0.5,Por iniciar,—,10
+MV-096,Revisión y reporte,Probar ciclo corrección–aprobación,30/12/2026,0.5,Por iniciar,—,10
+MV-097,Integración y preparación,"Integrar Core, servicios y captura",31/12/2026,0.5,Por iniciar,—,11
+MV-098,Integración y preparación,Probar permisos por rol y servicio,31/12/2026,0.5,Por iniciar,—,11
+MV-099,Integración y preparación,Probar altas y cambios de catálogos,04/01/2027,0.5,Por iniciar,—,11
+MV-100,Integración y preparación,Probar inventario transaccional concurrente,04/01/2027,0.5,Por iniciar,—,11
+MV-101,Integración y preparación,Probar continuidad entre periodos,05/01/2027,0.5,Por iniciar,—,11
+MV-102,Integración y preparación,Probar retención de evidencia,05/01/2027,0.5,Por iniciar,—,11
+MV-103,Integración y preparación,Verificar PDF histórico inmutable,06/01/2027,0.5,Por iniciar,—,11
+MV-104,Integración y preparación,Corregir errores de integración identificados,06/01/2027,0.5,Por iniciar,—,11
+MV-105,Integración y preparación,Validar UX móvil con supervisor,07/01/2027,0.5,Por iniciar,—,12
+MV-106,Integración y preparación,Aplicar ajustes de usabilidad,07/01/2027,0.5,Por iniciar,—,12
+MV-107,Integración y preparación,Preparar entorno y variables de despliegue,08/01/2027,0.5,Por iniciar,—,12
+MV-108,Integración y preparación,Preparar migraciones y respaldos,08/01/2027,0.5,Por iniciar,—,12
+MV-109,Integración y preparación,Cargar datos de planta piloto,11/01/2027,0.5,Por iniciar,—,12
+MV-110,Integración y preparación,Configurar usuarios y permisos piloto,11/01/2027,0.5,Por iniciar,—,12
+MV-111,Integración y preparación,Ejecutar ensayo completo del corte,12/01/2027,0.5,Por iniciar,—,12
+MV-112,Integración y preparación,Elaborar guía operativa breve,12/01/2027,0.5,Por iniciar,—,12
+MV-113,Integración y preparación,Capacitar supervisores y revisores,13/01/2027,0.5,Por iniciar,—,12
+MV-114,Integración y preparación,Cerrar checklist para iniciar piloto,13/01/2027,0.5,Por iniciar,—,12
+MV-115,Piloto y entrega,Validar datos reales del piloto,14/01/2027,0.5,Por iniciar,—,13
+MV-116,Piloto y entrega,Acompañar captura de actividades reales,14/01/2027,0.5,Por iniciar,—,13
+MV-117,Piloto y entrega,Verificar movimientos de inventario piloto,15/01/2027,0.5,Por iniciar,—,13
+MV-118,Piloto y entrega,Dar seguimiento a hallazgos y corte,15/01/2027,0.5,Por iniciar,—,13
+MV-119,Piloto y entrega,Atender retroalimentación de Esteban,18/01/2027,0.5,Por iniciar,—,13
+MV-120,Piloto y entrega,Generar y aprobar PDF piloto,18/01/2027,0.5,Por iniciar,—,13
+MV-121,Piloto y entrega,Validar histórico y descarga,19/01/2027,0.5,Por iniciar,—,13
+MV-122,Piloto y entrega,Corregir incidencias críticas de aceptación,19/01/2027,0.5,Por iniciar,—,13
+MV-123,Piloto y entrega,Revisar criterios de aceptación con operación,20/01/2027,0.5,Por iniciar,—,13
+MV-124,Piloto y entrega,Preparar entrega técnica,20/01/2027,0.5,Por iniciar,—,13
+MV-125,Piloto y entrega,Preparar entrega operativa,21/01/2027,0.5,Por iniciar,—,14
+MV-126,Piloto y entrega,Registrar pendientes de fase posterior,21/01/2027,0.5,Por iniciar,—,14
+MV-127,Piloto y entrega,Revisión final con Dirección,22/01/2027,0.5,Por iniciar,—,14
+MV-128,Piloto y entrega,Cierre y aceptación del MVP,22/01/2027,0.5,Por iniciar,—,14
