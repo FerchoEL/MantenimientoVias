@@ -145,3 +145,269 @@ application-info de Boost 2.10.3 no devuelve la lista de modelos Eloquent.
 
 Fuentes oficiales consultadas: [Laravel Boost](https://laravel.com/framework/docs/boost)
 y [MCP para Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
+## MV-006…MV-008 — resultados comprobados el 2026-10-26
+
+Esta sección posterior actualiza el estado histórico anterior. Alcance autorizado
+por la solicitud adjunta «KP Group — Implementación MV-006 a MV-008».
+Inicio: rama main, HEAD 24d53e5 (chore: configurar Laravel Boost 2.10.3 para Codex),
+árbol limpio. No se crearon commits ni se hizo push durante este bloque.
+
+| Actividad | Estado del bloque | Evidencia y límite |
+|---|---|---|
+| MV-006 | Completada: diseño del alcance solicitado documentado | Sección 7 del PDF contrastada; modelo-datos.md y decisiones-tecnicas.md recogen estructura, aclaraciones y límites. Colación/concurrencia requieren validación posterior. |
+| MV-007 | Parcial | Dos migraciones creadas, ejecutadas y comprobadas en SQLite :memory:, incluyendo down/up. NO ejecutadas ni validadas en MariaDB de desarrollo o testing. |
+| MV-008 | Completada en el alcance Eloquent probado en SQLite | Modelos, relaciones, factories y bloqueo de altas probados. No incluye Resources, Policies, autorización HTTP ni otros módulos. |
+
+### Archivos de implementación
+
+- app/Models/Client.php y app/Models/Plant.php.
+- database/factories/ClientFactory.php y database/factories/PlantFactory.php.
+- database/migrations/2026_10_27_021628_create_clients_table.php.
+- database/migrations/2026_10_27_021629_create_plants_table.php.
+- tests/DatabaseTestCase.php.
+- tests/Feature/Models/ClientTest.php y tests/Feature/Models/PlantTest.php.
+- tests/Feature/Database/ClientPlantMigrationsTest.php.
+- Documentación actualizada: modelo-datos.md, decisiones-tecnicas.md y este archivo.
+
+Los nombres de migración fueron generados por Artisan con el reloj UTC del
+servidor; no modifican fechas ni identificadores del Gantt.
+
+### Verificaciones ejecutadas
+
+- Versiones instaladas: Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2.
+- route:list --path=admin: dashboard, login y logout registrados. User sigue sin
+  FilamentUser/canAccessPanel; no se tocó MV-003 ni se probó login HTTP.
+- Boost no aparece como herramienta nativa en esta sesión. Se invocó su herramienta
+  SearchDocs mediante boost:execute-tool: documentación Laravel 13 sobre eventos
+  Eloquent y migraciones. DatabaseSchema, con CACHE_STORE=array, confirmó esquema
+  previo MariaDB de 14 tablas, sin clients/plants; solo lectura de metadatos.
+- Suite del bloque: **15 pruebas, 45 aserciones, todas pasaron**.
+- Suite completa: **17 pruebas, 47 aserciones, todas pasaron** (incluye las dos
+  pruebas de ejemplo previas). No confundirlas con pruebas de autenticación.
+- Cobertura: relación 1:N y belongsTo, exclusión de plantas de otro cliente,
+  ambos short_name nulos/asignables, observations nullable, defaults y casts,
+  unicidad dentro del cliente, duplicidad entre clientes, FK inexistente/omitida,
+  eliminación restringida, desactivación sin cascada, datos previos consultables,
+  altas bloqueadas por create/save/relación y rechazo con estado del cliente
+  desactualizado en memoria. Reversión y reaplicación de las nuevas migraciones.
+- Base efectiva: testing / sqlite / :memory:, PDO sqlite, archivo vacío en
+  PRAGMA database_list y foreign_keys=1. DatabaseTestCase valida configuración al
+  arrancar y conexión efectiva antes de que LazilyRefreshDatabase migre.
+- Prueba negativa deliberada: ejecutar un caso con DB_CONNECTION=mariadb y
+  DB_DATABASE=kp_mantenimiento_vias produjo RuntimeException de la barrera antes
+  de consultar/migrar. Salida 2 esperada, cero aserciones; no es fallo funcional.
+- Pint --dirty --format agent aplicado; git diff --check sin errores.
+- No se ejecutaron migraciones ni seeders en MariaDB. Sin cambios en User,
+  proveedores del panel, permisos, migraciones previas, fuentes originales o Gantt.
+
+### Comandos de validación y aplicación posterior
+
+Pruebas aisladas (ejecutado; no utiliza MariaDB):
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv006-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+Antes de reutilizar el comando, comprobar que la ruta APP_CONFIG_CACHE no contiene
+un caché de configuración. La barrera de DatabaseTestCase rechaza destinos no aislados.
+
+**Solo tras autorización para la base de destino y comprobar su conexión efectiva**,
+revisar primero el estado, después el SQL y finalmente aplicar exclusivamente
+estas dos migraciones (comandos propuestos, NO ejecutados en MariaDB):
+
+```bash
+php artisan migrate:status --database=mariadb
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_27_021628_create_clients_table.php --path=database/migrations/2026_10_27_021629_create_plants_table.php --pretend --no-interaction
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_27_021628_create_clients_table.php --path=database/migrations/2026_10_27_021629_create_plants_table.php --no-interaction
+php artisan migrate:status --database=mariadb
+```
+
+Validar antes en una MariaDB exclusiva de testing, con conexión separada y sin
+reutilizar kp_mantenimiento_vias. La suite actual está intencionalmente limitada a
+SQLite; una prueba MariaDB necesitará su configuración y protección específicas.
+Validaciones pendientes allí: tipos unsigned, longitudes varchar en modo estricto,
+colación/caso/acentos/espacios, FK/índice y concurrencia real. SQLite no acredita
+esas propiedades de MariaDB. down() elimina las tablas y sus datos: no usarlo
+como reversión inocua después de capturar información real.
+
+### Límites y pendientes
+
+- El callback creating valida altas Eloquent; SQL directo, insert/upsert y
+  saveQuietly/withoutEvents lo omiten. No es una restricción de base de datos.
+- La comprobación de activo y el INSERT no son atómicos frente a una desactivación
+  concurrente. Coordinar transacciones/bloqueos en futuros escritores si se requiere
+  esa garantía; no se declara probada concurrencia con SQLite.
+- Histórico comprobado en este bloque: clientes, plantas, atributos y relaciones
+  existentes conservados al desactivar. No existen aún históricos operativos de
+  servicios/reportes ni se implementó autorización para su lectura.
+- Pendientes de definición: colación y tratamiento de correcciones/reasignación,
+  reactivación y otras operaciones bajo cliente inactivo. El alta de nuevas plantas
+  ya está definida y cubierta; no bloquear por ello el resto del diseño aprobado.
+- MV-009/MV-010, Resources, vías, cambios y tramos no se implementaron.
+- Propuesta de commit (no creado): `feat: implementar clientes y plantas MV-006 a MV-008`.
+
+Bloque detenido para revisión antes de continuar con el siguiente alcance.
+
+## MV-003 — acceso al panel verificado el 2026-10-27
+
+Autorización: solicitud completa «KP Group — Desarrollo MV-003, MV-009 y MV-010».
+Fuentes revisadas: AGENTS.md, PLANS.md, reglas de dominio, arquitectura, modelo de
+datos, reglas de negocio, decisiones y estado; documentación funcional v1.1,
+especialmente secciones 2, 6, 7, 8, 9, 14, 16 y 17. Boost MCP disponible: inspección
+de aplicación, consultas SELECT y search-docs para Filament 5.
+
+### Estado real y cambios de esta etapa
+
+- Antes de esta etapa, User tenía HasRoles, pero no FilamentUser/canAccessPanel.
+  El middleware instalado permitía usuarios autenticados sin ese contrato en local
+  y los rechazaba fuera de local. No había pruebas de autenticación del panel.
+- app/Models/User.php ahora implementa FilamentUser y limita el panel admin a los
+  tres roles aprobados, comprobando el guard del panel. Sin dependencia de APP_ENV.
+- Creado tests/Feature/AdminPanelAuthenticationTest.php. AdminPanelProvider y
+  RolePermissionSeeder no se modificaron; no se añadieron permisos persistidos.
+- Login, dashboard y logout mantienen sus rutas Filament existentes.
+- Git conserva los cambios previos de MV-006…008. No se modificaron sus migraciones,
+  modelos ni factories, fuentes originales, Gantt, dependencias o .env.
+
+Actualización de evidencia MariaDB frente al apartado histórico anterior: las
+consultas de solo lectura confirman que clients y plants ya existen y que ambas
+migraciones 2026_10_27_021628/021629 están registradas en el lote 3. No fueron
+ejecutadas por esta etapa. Esta evidencia no equivale a una suite MariaDB aprobada;
+las pruebas específicas de colación, límites y concurrencia continúan pendientes.
+
+### Pruebas ejecutadas
+
+- Primera ejecución de la nueva clase: 23 pruebas, 80 aserciones, todas aprobadas.
+- Tras añadir el caso de guard distinto, suite completa: **41 pruebas y 128
+  aserciones, todas aprobadas**. Incluye 24 pruebas nuevas de MV-003 y las 17 previas.
+- Cobertura nueva: login para los tres roles; credenciales incorrectas; denegación
+  de login y acceso directo sin rol o con rol externo en local/production; acceso
+  permitido en ambos entornos; visitante redirigido; logout e invalidación de sesión;
+  retirada de rol durante sesión; permiso core.view insuficiente por sí solo;
+  rechazo de otro panel y de rol con guard diferente.
+- Se ejercitaron rutas HTTP y el componente Livewire real de login. No se realizó
+  validación visual en navegador ni login con usuarios reales de MariaDB.
+- DatabaseTestCase comprobó testing/sqlite/:memory:, URL vacía y claves foráneas;
+  antes de migrar verificó PDO sqlite, archivo vacío y PRAGMA foreign_keys=1.
+  Las variantes local/production cambian config(app.env) después de preparar los
+  datos aislados, sin cambiar la conexión ni ejecutar pruebas en esos entornos reales.
+- Roles y permisos usados como fixtures solo se crearon en SQLite en memoria.
+  No se ejecutó RolePermissionSeeder ni ninguna migración en MariaDB.
+- Pint --dirty --format agent ejecutado; git diff --check sin errores.
+
+Comando de suite completa ejecutado, tras comprobar inexistente la ruta de caché:
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv003-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+### Estado por etapa y siguiente decisión
+
+| Actividad | Estado comprobado | Límite |
+|---|---|---|
+| MV-003 | Terminado verificado para autenticación y acceso al panel solicitado | No acredita autorización de operaciones de catálogos todavía inexistentes ni alcance por servicios asignados. |
+| MV-009 | Implementada y verificada en SQLite aislada | ClientResource, ClientPolicy, acciones y pruebas; MariaDB pendiente. |
+| MV-010 | Implementada y verificada en SQLite aislada | PlantResource, PlantPolicy, acciones y pruebas; MariaDB pendiente. |
+
+La [propuesta mínima de cuatro permisos](decisiones-tecnicas.md#mv-003-y-propuesta-de-permisos-mv-009mv-010--2026-10-27)
+está documentada y NO aplicada: view/manage por catálogo, Administrador y Jefe;
+sin acceso global para Supervisor ni permisos de eliminación. La sección 6 de la
+solicitud requiere autorización expresa antes de modificar seeder o permisos.
+
+Archivos de esta etapa: app/Models/User.php, tests/Feature/AdminPanelAuthenticationTest.php,
+docs/decisiones-tecnicas.md y este archivo. Sin commits ni push.
+Mensaje de commit propuesto: `feat: validar acceso al panel administrativo MV-003`.
+
+## MV-009/MV-010 — implementación verificada en SQLite el 2026-10-27
+
+Autorización: aprobación expresa de `maintenance.client.view`,
+`maintenance.client.manage`, `maintenance.plant.view` y
+`maintenance.plant.manage`, exclusivamente para Administrador y Jefe de
+supervisores.
+
+- RolePermissionSeeder conserva los 25 permisos previos y agrega únicamente los
+  cuatro aprobados. Administrador y Jefe reciben 29; Supervisor conserva 15 y no
+  recibe permisos de clientes/plantas. `findOrCreate` y `syncPermissions` mantienen
+  la ejecución idempotente. El seeder no se ejecutó en MariaDB.
+- Creadas `app/Policies/ClientPolicy.php` y `app/Policies/PlantPolicy.php`.
+  Consulta usa `*.view`; creación, edición y activación/desactivación usan
+  `*.manage`; `delete`, `deleteAny`, `restore` y `forceDelete` están denegados.
+- Creados `ClientResource` y `PlantResource` en `Configuración`, con acciones de
+  creación/edición y acción explícita de activar/desactivar. No hay acciones de
+  eliminación física ni bulk delete.
+- ClientResource valida name requerido/150 y short_name opcional/80, busca ambos
+  campos y muestra estado activo. PlantResource muestra cliente, busca por nombre,
+  filtra por cliente, valida los límites y unicidad compuesta mediante una regla
+  `unique` condicionada por `client_id`; el índice de base de datos sigue siendo
+  la garantía final.
+- Plant mantiene el bloqueo de alta para cliente inactivo y ahora rechaza también
+  la reasignación de una planta hacia un cliente inactivo. No impone restricciones
+  adicionales a otros cambios.
+- La baja lógica conserva plantas e histórico; no se añadió cascada ni borrado.
+
+### Pruebas de esta etapa
+
+- Suite completa aislada: **47 pruebas y 182 aserciones, todas aprobadas**.
+- Incluye la matriz de roles y permisos, idempotencia del seeder, Policies, acceso
+  directo por URL para Supervisor, navegación del Resource, ausencia de borrado,
+  creación y edición mediante acciones Filament de Clientes y Plantas, unicidad y
+  bloqueo de clientes inactivos, reasignación rechazada y conservación histórica.
+- La conexión efectiva fue SQLite `:memory:` con foreign keys activadas, validada por
+  `DatabaseTestCase` antes de migrar. No se modificó ni reconstruyó
+  `kp_mantenimiento_vias`; no se ejecutaron migraciones ni seeders en MariaDB.
+- `vendor/bin/pint --dirty --format agent` ejecutado y `git diff --check` limpio.
+
+Estado: MV-009 y MV-010 **implementadas y verificadas en SQLite aislada**. La
+validación específica de MariaDB 10.11, incluida su colación efectiva y pruebas de
+concurrencia, permanece pendiente. El acceso futuro del Supervisor por servicios
+asignados no se implementa porque ese módulo aún no existe.
+
+Archivos de esta etapa: `database/seeders/RolePermissionSeeder.php`,
+`app/Policies/ClientPolicy.php`, `app/Policies/PlantPolicy.php`,
+`app/Models/Plant.php`, los Resources y sus páginas bajo
+`app/Filament/Resources/Clients` y `app/Filament/Resources/Plants`, y
+`tests/Feature/CatalogAuthorizationAndResourcesTest.php`.
+
+Comandos propuestos para aplicar después en MariaDB, **no ejecutados**:
+
+```bash
+php artisan migrate:status --database=mariadb
+php artisan db:seed --class=Database\\Seeders\\RolePermissionSeeder --no-interaction
+```
+
+Ejecutar el seeder solo después de verificar la base y autorización de escritura;
+la operación es idempotente, pero `syncPermissions` define exactamente los permisos
+de los tres roles y debe revisarse frente a permisos añadidos fuera del seeder.
+
+Mensaje de commit propuesto: `feat: implementar autorización y catálogos MV-009 MV-010`.
+
+## Ajustes finales MV-009/MV-010 — verificados el 2026-10-27
+
+- [PlantResource](../app/Filament/Resources/Plants/PlantResource.php) muestra solo
+  clientes activos en el selector de creación. Al editar, mantiene disponible el
+  cliente actual incluso si está inactivo, preservando la relación histórica.
+- Al editar una planta con cliente inactivo se muestra el aviso informativo aprobado;
+  es no bloqueante y no cambia las Policies ni crea un mecanismo de congelamiento.
+- [config/app.php](../config/app.php) fija `es` como idioma, `es` como fallback y
+  `es_MX` para Faker. Los labels de recursos son Cliente/Clientes y Planta/Plantas;
+  acciones nativas como Crear, Crear y crear otro, Editar, Guardar cambios y
+  Cancelar se resuelven mediante traducciones nativas de Filament 5.
+- No se modificaron migraciones, permisos, roles, datos MariaDB ni archivos de
+  `vendor`. No se ejecutaron migraciones ni seeders.
+
+Pruebas después de los ajustes: **48 pruebas y 191 aserciones, todas aprobadas** en
+SQLite `:memory:` con la conexión efectiva validada por `DatabaseTestCase`. Incluyen
+selector de clientes inactivos, edición histórica, aviso no bloqueante, matriz de
+permisos, acceso directo, unicidad, baja lógica y ausencia de eliminación física.
+`vendor/bin/pint --dirty --format agent` y `git diff --check` terminaron correctamente.
+
+Estado: MV-009 y MV-010 quedan **terminadas y verificadas en SQLite aislada**. Sigue
+pendiente la comprobación visual en navegador y la validación específica de MariaDB
+10.11; ninguna de las dos se ejecutó en esta etapa.
+
+Archivos modificados en este ajuste: `app/Filament/Resources/Plants/PlantResource.php`,
+`config/app.php`, `tests/Feature/CatalogAuthorizationAndResourcesTest.php`,
+`docs/decisiones-tecnicas.md` y este archivo.
+
+Mensaje de commit propuesto: `fix: ajustar idioma y selector histórico de catálogos`.

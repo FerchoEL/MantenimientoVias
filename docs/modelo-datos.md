@@ -26,10 +26,40 @@ Fuente: `fuentes/Documentacion_Proyecto_Mantenimiento_Vias_KPGroup_v1.1.pdf`, se
 2. Los nombres de planta son únicos dentro de un mismo cliente; distintas empresas pueden tener plantas con el mismo nombre. Definir explícitamente si comparación ignora mayúsculas/espacios de acuerdo con collation MariaDB real y documentar la decisión.
 3. Desactivar un cliente conserva plantas y todos los registros históricos; bloquear nuevas operaciones bajo cliente inactivo sin desactivar plantas en cascada.
 4. Mantener desactivación lógica (`active`) y relaciones históricas; no `ON DELETE CASCADE` para borrar histórico.
-5. La lectura histórica autorizada se conserva. Clasificar las operaciones por módulo y resolver correcciones, cambios de cliente, reactivaciones y cierres en [decisiones técnicas](decisiones-tecnicas.md) antes de implementar la acción afectada; no inventar excepciones al bloqueo.
+5. La lectura histórica autorizada se conserva. La creación de nuevas plantas para clientes inactivos queda bloqueada en esta fase por decisión expresa. Clasificar las demás operaciones por módulo y resolver correcciones, cambios de cliente, reactivaciones y cierres en [decisiones técnicas](decisiones-tecnicas.md) antes de implementar la acción afectada.
 
 ## Pruebas del bloque
 - Cliente y planta con short_name nulo; planta vinculada a cliente.
 - Unicidad planta dentro de cliente y duplicidad entre clientes permitida.
 - Cliente inactivo no elimina ni desactiva plantas; impedir nuevas operaciones conforme regla aprobada.
 - Integridad de foreign keys, manejo de cambios de cliente y autorización de recursos.
+
+## MV-006 — correspondencia del diseño implementado
+
+Fuente original contrastada: documentación v1.1, sección 7 (clientes/plantas,
+página 11); secciones 3 y 18 para nombres neutrales, 6 para RF-001/RF-002,
+8 para Client hasMany Plant / Plant belongsTo Client, 16 para AC-12 y 17 para
+integridad referencial. La sección 9 define autorización para los módulos futuros;
+no se implementan permisos ni interfaces en este bloque.
+
+El original describe tipos conceptuales y no explicita nullable en ambos nombres
+cortos ni unicidad de planta por cliente; esas decisiones proceden de las
+aclaraciones posteriores y de la solicitud de implementación, no del PDF.
+
+- clients: id BIGINT UNSIGNED PK; name VARCHAR(150) NOT NULL;
+  short_name VARCHAR(80) NULL; active BOOLEAN NOT NULL DEFAULT true; timestamps.
+- plants: id BIGINT UNSIGNED PK; client_id BIGINT UNSIGNED NOT NULL;
+  name VARCHAR(150) NOT NULL; short_name VARCHAR(80) NULL;
+  active BOOLEAN NOT NULL DEFAULT true; observations TEXT NULL; timestamps.
+- FK plants.client_id → clients.id con ON DELETE RESTRICT;
+  índice único plants(client_id, name). Sin índices redundantes ni columnas extra.
+- Modelos App\Models\Client y App\Models\Plant: Fillable explícito siguiendo User,
+  casts() boolean para active, HasFactory, HasMany/BelongsTo tipados.
+- Defaults aplicados por la BD; recargar un modelo recién creado si se necesita
+  observar un valor omitido que procede del default de la tabla.
+- Validación de cliente inactivo centralizada en creating de Plant; justificación
+  y límites documentados en decisiones-tecnicas.md. No se filtra globalmente el
+  histórico ni se alteran plantas cuando cambia Client.active.
+
+La estructura generada no acredita ejecución en MariaDB: ver el estado MV-007
+parcial y las validaciones SQLite/MariaDB en [estado](estado-proyecto.md).

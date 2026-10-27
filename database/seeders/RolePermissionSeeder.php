@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -40,6 +39,10 @@ class RolePermissionSeeder extends Seeder
             'maintenance.report.select-content',
             'maintenance.report.approve',
             'maintenance.report.download',
+            'maintenance.client.view',
+            'maintenance.client.manage',
+            'maintenance.plant.view',
+            'maintenance.plant.manage',
         ];
 
         foreach ($permissions as $permission) {
