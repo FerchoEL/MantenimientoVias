@@ -28,6 +28,21 @@ class TrackSwitch extends Model
                 ]);
             }
         });
+
+        static::updating(function (TrackSwitch $trackSwitch): void {
+            if (! $trackSwitch->isDirty('plant_id')) {
+                return;
+            }
+
+            if ($trackSwitch->plant()->where(function (Builder $query): void {
+                $query->where('active', false)
+                    ->orWhereHas('client', fn (Builder $clientQuery): Builder => $clientQuery->where('active', false));
+            })->exists()) {
+                throw ValidationException::withMessages([
+                    'plant_id' => 'No se puede asignar un cambio a una planta o cliente inactivo.',
+                ]);
+            }
+        });
     }
 
     protected function casts(): array

@@ -190,3 +190,26 @@ La inspección de MariaDB por lectura confirmó cero tramos y cero referencias n
 nulas; las filas y atributos restantes se preservan. Su `down()` recrea columnas
 nullable vacías y FKs, pero no puede recuperar valores anteriores. No se ejecuta
 rollback como parte de esta corrección.
+
+## MV-015/MV-016 — mantenimiento de Vías y Cambios — 2026-11-02
+
+Responsable: usuario responsable del proyecto. Se aprueban los Resources de Track
+y TrackSwitch dentro de `Configuración`, con lectura/gestión exclusiva para
+Administrador y Jefe de supervisores. Supervisor no recibe acceso global. Se
+agregan únicamente `maintenance.track.view`, `maintenance.track.manage`,
+`maintenance.track-switch.view` y `maintenance.track-switch.manage`; no se crean
+permisos de borrado. Las Policies deniegan delete/deleteAny/restore/forceDelete.
+
+Las altas requieren una Planta y Cliente activos. En edición, el selector mantiene
+la Planta histórica actual; se permite guardar correcciones conservando esa
+relación, pero no reasignar a otra Planta inactiva ni a una Planta cuyo Cliente
+esté inactivo. Las vías se validan únicas por `(plant_id, name)` y los cambios por
+`(plant_id, code)`, con mensajes locales y sus índices como garantía de base de
+datos. No hay unicidad de `Track.code`. La baja es lógica y no cascada. Croquis no
+se expone ni se administra todavía. TrackSwitch no se relaciona con TrackSection.
+
+La actualización de `RolePermissionSeeder` es idempotente, pero `syncPermissions`
+asigna exactamente la lista definida a Administrador y Jefe y reemplaza cualquier
+permiso adicional que se les hubiera concedido fuera del seeder. La lectura de
+MariaDB observó actualmente 29 permisos en cada uno y 15 en Supervisor, sin los
+cuatro permisos nuevos; no ejecutar el seeder allí sin autorización de escritura.

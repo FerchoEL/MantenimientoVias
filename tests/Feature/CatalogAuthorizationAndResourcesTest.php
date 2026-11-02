@@ -33,12 +33,16 @@ class CatalogAuthorizationAndResourcesTest extends DatabaseTestCase
     {
         $this->seed(RolePermissionSeeder::class);
 
-        $this->assertSame(29, Permission::count());
-        $this->assertCount(29, Role::findByName('Administrador', 'web')->permissions);
-        $this->assertCount(29, Role::findByName('Jefe de supervisores', 'web')->permissions);
+        $this->assertSame(33, Permission::count());
+        $this->assertCount(33, Role::findByName('Administrador', 'web')->permissions);
+        $this->assertCount(33, Role::findByName('Jefe de supervisores', 'web')->permissions);
         $this->assertCount(15, Role::findByName('Supervisor', 'web')->permissions);
         $this->assertFalse(Role::findByName('Supervisor', 'web')->hasPermissionTo('maintenance.client.view'));
         $this->assertTrue(Role::findByName('Administrador', 'web')->hasPermissionTo('maintenance.plant.manage'));
+        $this->assertTrue(Role::findByName('Administrador', 'web')->hasPermissionTo('maintenance.track.manage'));
+        $this->assertTrue(Role::findByName('Jefe de supervisores', 'web')->hasPermissionTo('maintenance.track-switch.view'));
+        $this->assertFalse(Role::findByName('Supervisor', 'web')->hasPermissionTo('maintenance.track.view'));
+        $this->assertFalse(Role::findByName('Supervisor', 'web')->hasPermissionTo('maintenance.track-switch.manage'));
     }
 
     public function test_policies_match_the_approved_catalog_matrix(): void

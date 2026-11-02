@@ -29,6 +29,21 @@ class Track extends Model
                 ]);
             }
         });
+
+        static::updating(function (Track $track): void {
+            if (! $track->isDirty('plant_id')) {
+                return;
+            }
+
+            if ($track->plant()->where(function (Builder $query): void {
+                $query->where('active', false)
+                    ->orWhereHas('client', fn (Builder $clientQuery): Builder => $clientQuery->where('active', false));
+            })->exists()) {
+                throw ValidationException::withMessages([
+                    'plant_id' => 'No se puede asignar una vía a una planta o cliente inactivo.',
+                ]);
+            }
+        });
     }
 
     protected function casts(): array

@@ -605,3 +605,67 @@ no crea relaciones con TrackSwitch, vías nombradas o lugares en sus extremos.
 
 Estado: corrección implementada; actualización en MariaDB pendiente de autorización.
 Mensaje de commit propuesto: `fix: desvincular tramos de cambios de via`.
+
+## MV-015/MV-016 — mantenimiento Filament de Vías y Cambios — 2026-11-02
+
+Autorización: solicitud adjunta «KP GROUP — SEMANA 02 — Desarrollo de interfaces
+Filament — MV-015 y MV-016». Versiones comprobadas: PHP 8.3, Laravel 13.38.0,
+Filament 5.10.3, Spatie Permission 8.3.2 y MariaDB 10.11.14.
+
+### Resultado
+
+- MV-015: Resource de Vías con alta/edición, búsqueda por nombre/código, filtros
+  por cliente/planta/estado y acción lógica de activar/desactivar. El formulario
+  conserva la Planta histórica actual, limita destinos a infraestructura activa y
+  valida unicidad del nombre por Planta. Croquis queda fuera de la UI.
+- MV-016: Resource de Cambios de vía con alta/edición, búsqueda por código/nombre,
+  filtros por Planta/estado y acción lógica de activar/desactivar. El código se
+  conserva como lo captura el usuario y se valida único por Planta.
+- Ambos Resources están en español bajo `Configuración`. Selectores muestran
+  Cliente y Planta. Avisos informan cuando la infraestructura histórica está
+  inactiva; no bloquean otras correcciones del registro.
+- Policies aplican view/manage y niegan eliminación física individual, masiva,
+  restore y force delete. Supervisor conserva acceso al panel pero no a las rutas
+  del catálogo; no se añadieron relaciones con Tramos.
+- El modelo impide altas nuevas vinculadas a Planta/Cliente inactivos y también
+  impide reasignar una Vía o Cambio a infraestructura inactiva. No modifica hijos
+  al desactivar un registro.
+- `RolePermissionSeeder` agrega exclusivamente los cuatro permisos aprobados.
+  No se ejecutó en MariaDB.
+
+### Verificación y límites
+
+- Pruebas enfocadas: **17 pruebas, 165 aserciones, 0 fallos**. Suite completa:
+  **95 pruebas, 443 aserciones, 0 fallos**. La primera corrida encontró una
+  expectativa histórica de 29 permisos en la prueba de MV-009/MV-010; se actualizó
+  a 33 para Administrador/Jefe, manteniendo Supervisor en 15, y la suite pasó.
+- `vendor/bin/pint --dirty --format agent` y `git diff --check` pasaron.
+- Las pruebas usan `DatabaseTestCase`, que rechaza cualquier configuración salvo
+  `testing` + SQLite `:memory:` con claves foráneas activas.
+- Boost confirmó por lectura que las tres migraciones core están registradas en
+  MariaDB batch 4 y la corrección MV-013/MV-014 en batch 5; las tablas `tracks`,
+  `track_switches` y `track_sections` existen. El esquema leído conserva las
+  columnas `sketch_disk`/`sketch_path` y los índices únicos compuestos esperados.
+- Boost también confirmó que los cuatro permisos Track aún no existen en MariaDB,
+  y que los roles tienen ahora 29 permisos (Administrador/Jefe) y 15 (Supervisor).
+  No se ejecutó ninguna migración ni seeder en esta etapa.
+- No hubo comprobación manual en navegador. Validar al menos creación, edición,
+  filtros y acciones de estado de ambos catálogos, selector histórico con Planta
+  inactiva, mensajes duplicados y denegación del Supervisor.
+
+### Archivos
+
+- Nuevos: Resources, esquemas, tablas y páginas de Track/TrackSwitch; Policies
+  correspondientes; `tests/Feature/TrackCatalogAuthorizationAndResourcesTest.php`.
+- Modificados: `Track.php`, `TrackSwitch.php`, `RolePermissionSeeder.php`, y este
+  archivo junto con `docs/decisiones-tecnicas.md`.
+
+Comando recomendado para aplicar permisos, únicamente tras autorización de
+escritura y revisión de los efectos de `syncPermissions`:
+
+```bash
+php artisan db:seed --class=Database\\Seeders\\RolePermissionSeeder --no-interaction
+```
+
+Estado: MV-015/MV-016 implementadas; suite completa pendiente de última corrida.
+Mensaje de commit propuesto: `feat: implementar catalogos de vias MV-015 MV-016`.

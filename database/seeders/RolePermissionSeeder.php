@@ -43,6 +43,10 @@ class RolePermissionSeeder extends Seeder
             'maintenance.client.manage',
             'maintenance.plant.view',
             'maintenance.plant.manage',
+            'maintenance.track.view',
+            'maintenance.track.manage',
+            'maintenance.track-switch.view',
+            'maintenance.track-switch.manage',
         ];
 
         foreach ($permissions as $permission) {
