@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
 
 #[Fillable(['client_id', 'name', 'short_name', 'active', 'observations'])]
@@ -47,5 +48,17 @@ class Plant extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /** @return HasMany<Track, $this> */
+    public function tracks(): HasMany
+    {
+        return $this->hasMany(Track::class);
+    }
+
+    /** @return HasMany<TrackSwitch, $this> */
+    public function trackSwitches(): HasMany
+    {
+        return $this->hasMany(TrackSwitch::class);
     }
 }

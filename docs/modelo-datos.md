@@ -7,9 +7,9 @@ Fuente: `fuentes/Documentacion_Proyecto_Mantenimiento_Vias_KPGroup_v1.1.pdf`, se
 |---|---|---|
 | `clients` | id, name varchar(150), short_name varchar(80) nullable, active, timestamps | `hasMany(Plant)`; nombre corto opcional según aclaración aprobada posterior |
 | `plants` | id, client_id, name varchar(150), short_name varchar(80) nullable, active, observations nullable | `belongsTo(Client)`; nombre único **dentro del cliente** según aclaración posterior |
-| `tracks` | id, plant_id, name, code?, sketch_disk?, sketch_path?, active | `belongsTo(Plant)`; `hasMany(TrackSection)` |
-| `track_switches` | id, plant_id, code, name, description?, active | `belongsTo(Plant)`; NO hijos |
-| `track_sections` | id, track_id, name, code?, start_switch_id?, end_switch_id?, active | `belongsTo(Track)`; switches solo referencias |
+| `tracks` | id, plant_id, name varchar(120), code varchar(50)?, sketch_disk varchar(40)?, sketch_path varchar(255)?, active, timestamps | `Plant hasMany Track`; `Track belongsTo Plant`; unique `(plant_id, name)`; `hasMany(TrackSection)` |
+| `track_switches` | id, plant_id, code varchar(50), name varchar(120), description?, active, timestamps | `Plant hasMany TrackSwitch`; `TrackSwitch belongsTo Plant`; unique `(plant_id, code)`; no tiene hijos ni relación con Track |
+| `track_sections` | id, track_id, name varchar(120), code varchar(50)?, active, timestamps | unique `(track_id, name)`; solo `belongsTo(Track)`; nombre operativo manual |
 | `maintenance_services` | id, plant_id, name, order_number?, start_date, end_date?, report_frequency, status, notes? | planta 1:N servicios |
 | `maintenance_service_supervisors` | service_id, user_id, start_date, end_date?, active | asignaciones temporales N:M; no exclusividad |
 | `maintenance_periods` | service_id, fechas, status, creador, envío, aprobación, cierre | servicio 1:N periodos |
@@ -63,3 +63,50 @@ aclaraciones posteriores y de la solicitud de implementación, no del PDF.
 
 La estructura generada no acredita ejecución en MariaDB: ver el estado MV-007
 parcial y las validaciones SQLite/MariaDB en [estado](estado-proyecto.md).
+
+## MV-011/MV-012 — vías y cambios (29-10-2026)
+
+Fuente contrastada: documentación funcional v1.1, secciones 3 (jerarquía), 4
+(RN-005 y RN-026), 6 (RF-003 a RF-005), 7 (atributos), 8 (relaciones) y 9
+(matriz de autorizaciones). Alcance implementado solo para Track y TrackSwitch;
+TrackSection, interfaces y permisos específicos quedan fuera de este bloque.
+
+- `tracks`: `id` BIGINT UNSIGNED PK; `plant_id` BIGINT UNSIGNED NOT NULL con FK
+  a `plants.id` y `ON DELETE RESTRICT`; `name` VARCHAR(120) NOT NULL; `code`
+  VARCHAR(50) NULL; `sketch_disk` VARCHAR(40) NULL; `sketch_path` VARCHAR(255)
+  NULL; `active` BOOLEAN NOT NULL DEFAULT true; timestamps.
+- `track_switches`: `id` BIGINT UNSIGNED PK; `plant_id` BIGINT UNSIGNED NOT NULL
+  con FK a `plants.id` y `ON DELETE RESTRICT`; `code` VARCHAR(50) NOT NULL;
+  `name` VARCHAR(120) NOT NULL; `description` TEXT NULL; `active` BOOLEAN NOT
+  NULL DEFAULT true; timestamps.
+- Las FKs a `plants.id` proporcionan sus índices; además, `tracks` tiene unique
+  `(plant_id, name)` y `track_switches` unique `(plant_id, code)`, conforme a la
+  aprobación funcional del 2026-10-29. No se modifica automáticamente ningún
+  código. No existe `track_id` en `track_switches`.
+- Modelos tipados `Track::plant()`, `TrackSwitch::plant()`, `Plant::tracks()` y
+  `Plant::trackSwitches()`; factories asignan una planta por defecto. `active`
+  se castea a boolean. No hay SoftDeletes ni carga de croquis.
+
+## MV-013/MV-014 — tramos (diseño inicial sustituido el 02-11-2026)
+
+Fuente contrastada: documentación funcional v1.1, secciones 3, 4 (RN-005/RN-026),
+6 (RF-003 a RF-005), 7 y 8; aclaraciones funcionales aprobadas en la solicitud
+Semana 02.
+
+- Diseño inicial del 29-10-2026: el esquema incluía referencias opcionales a
+  cambios de vía. La aclaración funcional del responsable del 02-11-2026 sustituye
+  esa parte: el tramo pertenece solo a Track; el nombre es un identificador manual
+  que puede ser, por ejemplo, `C1-C2`, `C1-V2` o `C4-Patio`. No se interpreta ni
+  genera relaciones con cambios, vías nombradas o lugares en sus extremos.
+- Esquema vigente: `id` BIGINT UNSIGNED PK; `track_id` BIGINT UNSIGNED NOT NULL;
+  `name` VARCHAR(120) NOT NULL; `code` VARCHAR(50) NULL; `active` BOOLEAN NOT NULL
+  DEFAULT true; timestamps. Unique `(track_id, name)` y FK `track_id → tracks.id`
+  con `ON DELETE RESTRICT`.
+- `Track::sections()` y `TrackSection::track()` son las relaciones Eloquent.
+  `start_switch_id` y `end_switch_id` fueron retirados por una migración correctiva;
+  no forman parte del esquema vigente.
+- En creación se exige cliente, planta y vía activos. La baja de esos catálogos no
+  desactiva ni elimina tramos ni bloquea sus ediciones generales.
+- La inactividad bloquea altas nuevas, pero no desactiva registros relacionados;
+  las ediciones no reciben un bloqueo general. Sin SoftDeletes ni campos de
+  kilometraje, longitud física, numeración o coordenadas.

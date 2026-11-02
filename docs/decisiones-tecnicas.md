@@ -129,3 +129,64 @@ Referencia: solicitud «KP Group — Ajustes finales MV-009 y MV-010».
 - Se mantienen las validaciones existentes: alta y reasignación hacia clientes
   inactivos se rechazan; desactivar un cliente no altera sus plantas; no existe
   eliminación física.
+
+## MV-011/MV-012 — vías y cambios — 2026-10-29
+
+Referencia: solicitud adjunta «KP GROUP — SEMANA 02 — MV-011 y MV-012», secciones
+2–7; documentación funcional v1.1, secciones 3, 4, 6–9. Responsable: usuario
+responsable del proyecto.
+
+- Se implementan vías y cambios como catálogos independientes, ambos vinculados
+  directamente a Plant. `TrackSwitch` no pertenece a Track ni tiene tramos.
+- Se aplican exactamente los campos y longitudes indicados por la solicitud. La
+  aclaración aprobada el 2026-10-29 añade `UNIQUE(plant_id, name)` para Track y
+  `UNIQUE(plant_id, code)` para TrackSwitch. Esta aclaración sustituye la decisión
+  inicial de Semana 02 que omitía índices únicos por falta de regla definida.
+- Las FKs a `plants.id` usan `RESTRICT`; así se conserva la jerarquía histórica y
+  no hay borrados en cascada. Los registros se desactivan mediante `active`; no se
+  agregan SoftDeletes. El futuro TrackSection deberá preservar esta integridad.
+- Las altas Eloquent de Track y TrackSwitch comprueban cliente y planta activos
+  con `creating`/`ValidationException`, conforme a la aclaración aprobada. Una
+  desactivación no modifica el estado ni el código de los registros relacionados.
+- No se editaron migraciones de clientes/plantas, roles, permisos, Gantt ni
+  archivos de croquis; `sketch_disk` y `sketch_path` son metadatos únicamente.
+
+## MV-013/MV-014 — tramos — diseño inicial sustituido 2026-11-02
+
+Referencia: solicitud adjunta «KP GROUP — SEMANA 02», apartados 2, 4–9; secciones
+3, 4, 6–9 de la documentación funcional v1.1. Responsable: usuario responsable
+del proyecto. Se incorporan las decisiones expresas sobre unicidad e inactividad.
+
+- `UNIQUE(track_id, name)` para tramos; mismo nombre en distintas vías permitido.
+  El nombre es manual y se guarda exactamente como se ingresa. No se deriva ni se
+  valida contra códigos de delimitadores.
+- Diseño inicial: referencias opcionales de inicio/fin a TrackSwitch. Esta decisión
+  queda sustituida por la aclaración funcional del responsable registrada abajo.
+- Solo al crear un tramo se exige que su Cliente, Planta y Vía estén activos. Al
+  desactivar cualquiera de esos catálogos no se alteran los tramos existentes ni
+  se bloquean sus ediciones generales. Track y TrackSwitch también rechazan altas
+  bajo cliente o planta inactivos. No se añaden Policies, permisos ni UI.
+- Las migraciones de Track y TrackSwitch no aparecen en el historial MariaDB y
+  sus tablas no existen allí; se actualizaron in place con los índices únicos.
+  Validar colación/caso/acentos y restricciones sobre MariaDB antes de aplicar.
+- Como los estados y delimitadores se verifican en eventos Eloquent, SQL directo,
+  `insert`/`upsert` y escrituras silenciosas pueden omitir esas reglas. No se
+  declara garantía frente a concurrencia entre desactivación y alta.
+
+## Aclaración funcional MV-013/MV-014 — 2026-11-02
+
+Responsable: usuario responsable del proyecto. Esta aclaración sustituye las
+referencias de inicio/fin del diseño inicial. TrackSection pertenece únicamente a
+Track. `name` es texto operativo manual (por ejemplo `C1-C2`, `C1-V2` o
+`C4-Patio`); no se parsea ni se asocia con TrackSwitch, vías nombradas o lugares
+en los extremos. Se conservan `UNIQUE(track_id, name)`, `code` nullable, `active`,
+timestamps y la FK restrictiva a Track.
+
+La migración correctiva
+`2026_11_02_200932_remove_switch_references_from_track_sections_table.php`
+elimina las columnas/FKs y los índices individuales de las referencias, sin
+recrear la tabla. Falla antes del cambio si encuentra alguna referencia no nula.
+La inspección de MariaDB por lectura confirmó cero tramos y cero referencias no
+nulas; las filas y atributos restantes se preservan. Su `down()` recrea columnas
+nullable vacías y FKs, pero no puede recuperar valores anteriores. No se ejecuta
+rollback como parte de esta corrección.

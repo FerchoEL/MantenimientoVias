@@ -411,3 +411,197 @@ Archivos modificados en este ajuste: `app/Filament/Resources/Plants/PlantResourc
 `docs/decisiones-tecnicas.md` y este archivo.
 
 Mensaje de commit propuesto: `fix: ajustar idioma y selector histórico de catálogos`.
+
+## MV-011/MV-012 — vías y cambios, verificado en SQLite el 2026-10-29
+
+Autorización: solicitud adjunta «KP GROUP — SEMANA 02 — MV-011 y MV-012».
+Fuentes contrastadas: AGENTS.md, PLANS.md, reglas de dominio, arquitectura,
+modelo-datos, reglas de negocio, decisiones, estado y Documentación Funcional y
+Técnica v1.1 (secciones 3, 4/RN-005 y RN-026, 6/RF-003 a RF-005, 7, 8 y 9).
+Versiones comprobadas: PHP 8.3.30, Laravel 13.38.0, Filament 5.10.3, Spatie
+Permission 8.3.2, Laravel Boost 2.10.3 y MariaDB 10.11.14.
+
+### Resultado
+
+- MV-011: diseño documentado; `Track` y `TrackSwitch` son entidades hermanas con
+  pertenencia directa a Plant. Por aclaración aprobada el 2026-10-29, Vía es única
+  por `(plant_id, name)` y Cambio por `(plant_id, code)`. `TrackSwitch` no es hijo
+  de Track; Tramos se implementan en MV-013/MV-014.
+- MV-012: dos migraciones, modelos, relaciones tipadas, factories y pruebas
+  creados. Las claves foráneas a Plant restringen el borrado; `active` tiene
+  default true; campos opcionales admiten NULL. Sin SoftDeletes ni croquis cargados.
+- Las altas Eloquent de vías/cambios rechazan cliente o planta inactivos. Desactivar
+  cliente o planta no cambia el estado de vías/cambios ni modifica códigos.
+- No se modificaron permisos, Resources, migraciones de clientes/plantas, Gantt,
+  fuentes, `.env` ni datos MariaDB; no se creó commit.
+
+### Archivos de esta etapa
+
+- Nuevos: `app/Models/Track.php`, `app/Models/TrackSwitch.php`, factories
+  correspondientes, migraciones `2026_10_29_212111_create_tracks_table.php` y
+  `2026_10_29_212112_create_track_switches_table.php`, pruebas de modelos y
+  `tests/Feature/Database/TrackMigrationsTest.php`.
+- Modificados: `app/Models/Plant.php`, `docs/modelo-datos.md`,
+  `docs/decisiones-tecnicas.md` y este estado.
+
+### Pruebas y límites
+
+- Suite completa aislada: **62 pruebas y 228 aserciones, todas aprobadas**.
+  Las tres clases nuevas aportan 14 pruebas y 37 aserciones; cubren relaciones,
+  campos nulos, defaults, FK obligatoria/existente, ausencia de unicidad,
+  independencia Track/TrackSwitch, conservación al desactivar, restricción de
+  borrado de Plant y rollback/reaplicación de las dos migraciones.
+- `DatabaseTestCase` comprobó `testing` + SQLite `:memory:`, URL vacía y
+  `foreign_keys=1` sobre la conexión efectiva antes de migrar.
+- `vendor/bin/pint --format agent` aplicado a archivos PHP nuevos/modificados;
+  `vendor/bin/pint --dirty --format agent` pasó.
+- Boost confirmó por lectura MariaDB 10.11.14 y ausencia de las tablas nuevas.
+  Las migraciones **no se aplicaron ni se probaron en MariaDB**.
+- Validación MariaDB pendiente: tipos unsigned, longitudes y nulabilidad
+  efectivas, índices/FKs y comportamiento de colación del motor. No se afirma
+  validación MariaDB a partir de SQLite.
+
+Comando aislado de suite completa ejecutado (se comprobó que no existiera el
+archivo de caché de configuración indicado):
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv011-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+### Comandos propuestos para MariaDB, requieren autorización posterior
+
+No ejecutar hasta confirmar que `mariadb` apunta al destino autorizado y revisar
+el SQL de `--pretend`. La migración añade tablas vacías; no modifica tablas
+anteriores.
+
+```bash
+php artisan migrate:status --database=mariadb
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_29_212111_create_tracks_table.php --path=database/migrations/2026_10_29_212112_create_track_switches_table.php --pretend --no-interaction
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_29_212111_create_tracks_table.php --path=database/migrations/2026_10_29_212112_create_track_switches_table.php --no-interaction
+php artisan migrate:status --database=mariadb
+```
+
+Estado: MV-011 y MV-012 implementadas y verificadas en SQLite aislada; MV-012
+no queda validada completamente hasta revisión/aplicación en MariaDB autorizada.
+Mensaje de commit propuesto: `feat: implementar vias y cambios MV-011 MV-012`.
+El bloque se detiene aquí; no se inició MV-013.
+
+## MV-011 a MV-014 — snapshot previo a corrección — 2026-10-29
+
+Autorización: solicitud adjunta «KP GROUP — SEMANA 02 — Ajustes MV-011/MV-012 e
+implementación MV-013/MV-014». Se volvieron a contrastar las reglas, arquitectura,
+modelo de datos, decisiones, estado y la Documentación Funcional y Técnica v1.1,
+secciones 3, 4, 6–9. Boost comprobó por lectura que las migraciones de vías/cambios
+no aparecen en `migrations` y que las tablas aún no existen en MariaDB 10.11.14;
+por ello sus migraciones no ejecutadas se actualizaron en sitio, según el alcance.
+
+### Resultado
+
+- MV-011/MV-012 actualizadas: `UNIQUE(plant_id, name)` para vías y
+  `UNIQUE(plant_id, code)` para cambios. Se preservan FK restrictivas, campos y
+  relaciones previas. Alta Eloquent rechaza cliente o planta inactivos.
+- MV-013/MV-014 implementadas: tabla y modelo `TrackSection`, factory, relación
+  vía-tramos, referencias inicial/final opcionales, unicidad `(track_id, name)` y
+  FKs restrictivas a Track y TrackSwitch.
+- Inicio y fin se validan por separado al crear y guardar: cada cambio debe estar
+  en la planta de la vía actual del tramo, incluso al cambiar `track_id`. El
+  nombre manual se conserva literalmente; no se deriva de los cambios.
+- Las altas nuevas de tramo requieren cliente, planta y vía activos. Desactivar
+  esos catálogos no desactiva ni elimina sus registros relacionados. No se
+  bloquearon ediciones generales ni se añadieron UI, Policies, permisos o
+  SoftDeletes.
+- Se registraron las decisiones aprobadas y la diferencia frente al criterio
+  inicial de Semana 02 (sin índices únicos) en decisiones-tecnicas.md.
+
+### Archivos
+
+- Nuevos: `app/Models/TrackSection.php`, `database/factories/TrackSectionFactory.php`,
+  `database/migrations/2026_10_29_221616_create_track_sections_table.php` y
+  `tests/Feature/Models/TrackSectionTest.php`.
+- También quedan sin seguimiento, como parte del bloque previo conservado:
+  modelos/factories/migraciones de Track y TrackSwitch, pruebas de ambos y
+  `tests/Feature/Database/TrackMigrationsTest.php`.
+- Modificados en este ajuste: modelos Track/TrackSwitch, migraciones
+  `2026_10_29_212111_create_tracks_table.php` y
+  `2026_10_29_212112_create_track_switches_table.php` para índices únicos, pruebas
+  correspondientes, `Plant.php` (relaciones previas), y los tres documentos de
+  datos, decisiones y estado.
+
+### Verificación
+
+- Suite completa en SQLite `:memory:`: **84 pruebas, 286 aserciones, 0 fallos**.
+  Incluye regresión de Semana 01, unicidad por padre, referencias opcionales,
+  pertenencia de delimitadores, cambios de delimitadores/vía durante edición,
+  estados inactivos, FKs y restricción de borrado.
+- `DatabaseTestCase` validó `APP_ENV=testing`, conexión efectiva SQLite
+  `:memory:`, URL vacía y `foreign_keys=1` antes de migrar.
+- Pint (`--format agent` sobre archivos afectados y `--dirty --format agent`) y
+  `git diff --check` pasaron.
+- MariaDB se consultó solo para confirmar versión, historial de estas migraciones
+  y ausencia de tablas. No se aplicaron migraciones ni se modificaron datos.
+- Pendiente en MariaDB: revisar SQL y comprobar índices únicos compuestos, tipos
+  unsigned, longitudes, nulabilidad, FKs y colación/caso/acentos. La suite SQLite
+  no acredita esos detalles del motor MariaDB.
+
+Comando de suite ejecutado, tras comprobar que el archivo de caché de configuración
+no existía:
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv014-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+### Comandos propuestos para aplicar en MariaDB, con autorización posterior
+
+Confirmar primero que `mariadb` apunta al destino autorizado y revisar el SQL de
+`--pretend`:
+
+```bash
+php artisan migrate:status --database=mariadb
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_29_212111_create_tracks_table.php --path=database/migrations/2026_10_29_212112_create_track_switches_table.php --path=database/migrations/2026_10_29_221616_create_track_sections_table.php --pretend --no-interaction
+php artisan migrate --database=mariadb --path=database/migrations/2026_10_29_212111_create_tracks_table.php --path=database/migrations/2026_10_29_212112_create_track_switches_table.php --path=database/migrations/2026_10_29_221616_create_track_sections_table.php --no-interaction
+php artisan migrate:status --database=mariadb
+```
+
+Estado en ese corte: MV-011 a MV-014 implementadas y verificadas en SQLite aislada. Las
+migraciones no están verificadas en MariaDB hasta que se revisen y apliquen con
+autorización. No se avanzó a MV-015; no se creó commit ni se hizo push.
+Mensaje de commit propuesto: `feat: implementar tramos y restricciones de vias`.
+
+## Corrección MV-013/MV-014 — identificador manual del tramo — 2026-11-02
+
+Autorización: solicitud adjunta «KP GROUP — Corrección funcional MV-013 / MV-014 —
+Desvincular Tramos de Cambios de vía». La aclaración reemplaza el diseño de
+referencias opcionales de inicio/fin: un TrackSection pertenece solo a Track; su
+nombre manual puede contener identificadores como `C1-C2`, `C1-V2` o `C4-Patio` y
+no crea relaciones con TrackSwitch, vías nombradas o lugares en sus extremos.
+
+- Se retiraron de `TrackSection` las relaciones/campos `start_switch_id` y
+  `end_switch_id`, así como los atributos de factory y validaciones asociadas.
+  `track_id`, `name`, `code`, estado, unicidad y reglas de altas activas se
+  mantienen.
+- Migración incremental añadida:
+  `2026_11_02_200932_remove_switch_references_from_track_sections_table.php`.
+  Antes de alterar el esquema, aborta si alguna referencia no es nula; conserva
+  filas y demás atributos. Su reversión vuelve a crear columnas nullable vacías,
+  por lo que no recuperaría valores eliminados.
+- La consulta de solo lectura a MariaDB confirmó las tres migraciones originales
+  registradas en batch 4, `total_sections=0`, `sections_with_start_switch=0` y
+  `sections_with_end_switch=0`. La tabla tiene índices individuales para las dos
+  FKs, que la migración elimina junto con dichas FKs/columnas.
+- Suite completa aislada SQLite `:memory:`: **78 pruebas, 274 aserciones, 0 fallos**.
+  Incluye eliminación/restauración de columnas y preservación de los datos de un
+  tramo con referencias nulas. Pint (`--dirty --format agent`), `git diff --check`
+  y `php -l` de la migración y modelo pasaron.
+- Vista `--pretend` MariaDB completada. SQL emitido: comprobación de referencias
+  no nulas; `ALTER TABLE track_sections DROP FOREIGN KEY` para ambas FKs; `DROP
+  INDEX` para ambos índices individuales; y `DROP start_switch_id, DROP
+  end_switch_id`. El modo pretend no aplicó cambios.
+- Comando exacto propuesto, únicamente tras autorización para aplicarlo:
+  `php artisan migrate --database=mariadb --path=database/migrations/2026_11_02_200932_remove_switch_references_from_track_sections_table.php --no-interaction`.
+  No se ejecuta migración correctiva en MariaDB ni se modifican sus datos en esta
+  tarea.
+- Archivos de modelo, factory, migración, pruebas, y documentos de arquitectura,
+  modelo de datos, decisiones y estado actualizados. No se alteran fuentes ni Gantt.
+
+Estado: corrección implementada; actualización en MariaDB pendiente de autorización.
+Mensaje de commit propuesto: `fix: desvincular tramos de cambios de via`.
