@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Tracks;
 use App\Filament\Resources\Tracks\Pages\CreateTrack;
 use App\Filament\Resources\Tracks\Pages\EditTrack;
 use App\Filament\Resources\Tracks\Pages\ListTracks;
+use App\Filament\Resources\Tracks\RelationManagers\SectionsRelationManager;
 use App\Filament\Resources\Tracks\Schemas\TrackForm;
 use App\Filament\Resources\Tracks\Tables\TracksTable;
 use App\Models\Track;
@@ -42,7 +43,7 @@ class TrackResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            SectionsRelationManager::class,
         ];
     }
 

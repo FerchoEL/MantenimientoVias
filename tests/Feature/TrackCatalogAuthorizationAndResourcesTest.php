@@ -157,12 +157,12 @@ class TrackCatalogAuthorizationAndResourcesTest extends DatabaseTestCase
             ->assertHasNoFormErrors();
 
         Livewire::test(CreateTrack::class)
-            ->fillForm(['plant_id' => $firstPlant->id, 'name' => 'Vía sur', 'code' => 'R1'])
+            ->fillForm(['plant_id' => $firstPlant->id, 'name' => 'Vía sur', 'code' => 'R2'])
             ->call('create')
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('tracks', ['plant_id' => $secondPlant->id, 'name' => 'Vía norte']);
-        $this->assertDatabaseHas('tracks', ['plant_id' => $firstPlant->id, 'name' => 'Vía sur', 'code' => 'R1']);
+        $this->assertDatabaseHas('tracks', ['plant_id' => $firstPlant->id, 'name' => 'Vía sur', 'code' => 'R2']);
     }
 
     public function test_track_form_reports_required_and_maximum_length_errors_in_spanish(): void

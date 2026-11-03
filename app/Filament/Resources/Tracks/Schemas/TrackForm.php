@@ -59,8 +59,18 @@ class TrackForm
                 TextInput::make('code')
                     ->label('Código')
                     ->maxLength(50)
-                    ->validationMessages(['max' => 'El código no puede superar los 50 caracteres.']),
-                Toggle::make('active')->label('Activo')->default(true),
+                    ->nullable()
+                    ->unique(modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule->where('plant_id', $get('plant_id')))
+                    ->validationMessages([
+                        'max' => 'El código no puede superar los 50 caracteres.',
+                        'unique' => 'Ya existe una vía con ese código para la planta seleccionada.',
+                    ]),
+                Toggle::make('active')
+                    ->label('Activo')
+                    ->default(true)
+                    ->helperText(fn (?Track $record): ?string => $record !== null && ! $record->active
+                        ? 'Esta vía está inactiva. Consulta y corrige sus tramos históricos cuando sea necesario; no se permiten altas nuevas.'
+                        : null),
             ]);
     }
 }

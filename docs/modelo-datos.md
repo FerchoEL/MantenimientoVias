@@ -7,9 +7,9 @@ Fuente: `fuentes/Documentacion_Proyecto_Mantenimiento_Vias_KPGroup_v1.1.pdf`, se
 |---|---|---|
 | `clients` | id, name varchar(150), short_name varchar(80) nullable, active, timestamps | `hasMany(Plant)`; nombre corto opcional según aclaración aprobada posterior |
 | `plants` | id, client_id, name varchar(150), short_name varchar(80) nullable, active, observations nullable | `belongsTo(Client)`; nombre único **dentro del cliente** según aclaración posterior |
-| `tracks` | id, plant_id, name varchar(120), code varchar(50)?, sketch_disk varchar(40)?, sketch_path varchar(255)?, active, timestamps | `Plant hasMany Track`; `Track belongsTo Plant`; unique `(plant_id, name)`; `hasMany(TrackSection)` |
+| `tracks` | id, plant_id, name varchar(120), code varchar(50)?, sketch_disk varchar(40)?, sketch_path varchar(255)?, active, timestamps | `Plant hasMany Track`; `Track belongsTo Plant`; unique `(plant_id, name)` y `(plant_id, code)` (code nullable); `hasMany(TrackSection)` |
 | `track_switches` | id, plant_id, code varchar(50), name varchar(120), description?, active, timestamps | `Plant hasMany TrackSwitch`; `TrackSwitch belongsTo Plant`; unique `(plant_id, code)`; no tiene hijos ni relación con Track |
-| `track_sections` | id, track_id, name varchar(120), code varchar(50)?, active, timestamps | unique `(track_id, name)`; solo `belongsTo(Track)`; nombre operativo manual |
+| `track_sections` | id, track_id, name varchar(120), code varchar(50)?, active, timestamps | unique `(track_id, name)` y `(track_id, code)` (code nullable); solo `belongsTo(Track)`; nombre operativo manual |
 | `maintenance_services` | id, plant_id, name, order_number?, start_date, end_date?, report_frequency, status, notes? | planta 1:N servicios |
 | `maintenance_service_supervisors` | service_id, user_id, start_date, end_date?, active | asignaciones temporales N:M; no exclusividad |
 | `maintenance_periods` | service_id, fechas, status, creador, envío, aprobación, cierre | servicio 1:N periodos |
@@ -86,6 +86,11 @@ TrackSection, interfaces y permisos específicos quedan fuera de este bloque.
 - Modelos tipados `Track::plant()`, `TrackSwitch::plant()`, `Plant::tracks()` y
   `Plant::trackSwitches()`; factories asignan una planta por defecto. `active`
   se castea a boolean. No hay SoftDeletes ni carga de croquis.
+- Ajuste aprobado el 2026-11-03: el código opcional de Track también es único
+  por Planta cuando no es `NULL`, mediante una migración incremental que conserva
+  el índice `(plant_id, name)`. Se permiten varios códigos `NULL` por Planta y
+  códigos iguales en Plantas distintas; la validación de edición ignora la vía
+  actual.
 
 ## MV-013/MV-014 — tramos (diseño inicial sustituido el 02-11-2026)
 
@@ -100,13 +105,18 @@ Semana 02.
   genera relaciones con cambios, vías nombradas o lugares en sus extremos.
 - Esquema vigente: `id` BIGINT UNSIGNED PK; `track_id` BIGINT UNSIGNED NOT NULL;
   `name` VARCHAR(120) NOT NULL; `code` VARCHAR(50) NULL; `active` BOOLEAN NOT NULL
-  DEFAULT true; timestamps. Unique `(track_id, name)` y FK `track_id → tracks.id`
-  con `ON DELETE RESTRICT`.
+  DEFAULT true; timestamps. Unique `(track_id, name)` y, mediante migración
+  incremental, `(track_id, code)`; FK `track_id → tracks.id` con
+  `ON DELETE RESTRICT`. Código opcional, único dentro de la Vía cuando se
+  proporciona; se permiten múltiples NULL y reutilización en otras Vías.
 - `Track::sections()` y `TrackSection::track()` son las relaciones Eloquent.
   `start_switch_id` y `end_switch_id` fueron retirados por una migración correctiva;
   no forman parte del esquema vigente.
 - En creación se exige cliente, planta y vía activos. La baja de esos catálogos no
   desactiva ni elimina tramos ni bloquea sus ediciones generales.
+- Administración disponible por dos interfaces con el mismo modelo y Policy:
+  `SectionsRelationManager` dentro de Editar Vía y el catálogo independiente
+  Tramos, donde se elige la Vía; en edición la propietaria permanece fija.
 - La inactividad bloquea altas nuevas, pero no desactiva registros relacionados;
   las ediciones no reciben un bloqueo general. Sin SoftDeletes ni campos de
   kilometraje, longitud física, numeración o coordenadas.

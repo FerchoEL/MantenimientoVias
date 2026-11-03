@@ -669,3 +669,164 @@ php artisan db:seed --class=Database\\Seeders\\RolePermissionSeeder --no-interac
 
 Estado: MV-015/MV-016 implementadas; suite completa pendiente de última corrida.
 Mensaje de commit propuesto: `feat: implementar catalogos de vias MV-015 MV-016`.
+
+## MV-017 — administración de Tramos por Vía — 2026-11-02
+
+Autorización: solicitud adjunta «KP GROUP — SEMANA 02 — MV-017 — Implementar
+administración de Tramos por Vía». Se conservaron los cambios previos de MV-015/
+MV-016 y no se inició MV-018.
+
+### Implementación
+
+- Añadido `SectionsRelationManager` nativo de Filament 5 a la página Editar Vía.
+  Permite consultar, buscar, filtrar por estado, crear y editar tramos, además de
+  activar/desactivar con notificación en español. No hay acción de eliminación.
+- El formulario incluye nombre manual obligatorio (120), código opcional (50) y
+  estado activo por defecto. No expone `track_id` ni referencias a TrackSwitch.
+  El alta se ejecuta a través de `Track::sections()`; el modelo impide cambiar la
+  vía propietaria en cualquier actualización.
+- La tabla está scopeada a la Vía propietaria. La Policy de TrackSection reutiliza
+  los permisos de Vía existentes. `canViewForRecord()` verifica tipo, existencia,
+  página propietaria y permiso del usuario; Supervisor no puede abrir el manager.
+- La unicidad `UNIQUE(track_id, name)` existente se valida también en el formulario
+  con mensaje en español. Altas para Cliente/Planta/Vía inactivos siguen rechazadas
+  por el modelo. Aviso en la edición de Vía inactiva; se preservan y pueden editarse
+  sus tramos históricos. No se añadieron permisos, Resources globales ni migraciones.
+
+### Verificación
+
+- Pruebas enfocadas: **10 pruebas, 95 aserciones, 0 fallos**. Suite completa:
+  **105 pruebas, 538 aserciones, 0 fallos**. `vendor/bin/pint --dirty --format
+  agent` y `git diff --check` pasaron.
+- Las pruebas usan `DatabaseTestCase` y SQLite `:memory:` con FK activadas.
+- Boost confirmó por lectura la migración de TrackSection registrada en batch 4
+  y la corrección de referencias en batch 5. MariaDB contiene `track_sections` con
+  columnas `track_id`, `name`, `code`, `active`, timestamps; índice único
+  `(track_id, name)` y FK restrictiva a `tracks`. No se realizaron escrituras,
+  migraciones ni seeders en MariaDB.
+- Manual en navegador pendiente: abrir una Vía, consultar/filtrar/buscar tramos,
+  crear y editar, probar duplicado, cambiar estado, verificar Vía inactiva y
+  confirmar denegación de Supervisor.
+
+Archivos nuevos: `SectionsRelationManager.php`, `TrackSectionPolicy.php` y
+`tests/Feature/SectionsRelationManagerTest.php`. Modificados: `TrackResource.php`,
+`TrackForm.php`, `TrackSection.php`, además de este archivo y
+`docs/decisiones-tecnicas.md`.
+
+Estado: MV-017 implementada y verificada en SQLite aislada. La validación manual
+en navegador continúa pendiente.
+Mensaje de commit propuesto: `feat: administrar tramos desde vias MV-017`.
+
+## Ajustes MV-015/MV-017 — catálogo independiente y código único por Planta — 2026-11-03
+
+Autorización: solicitud adjunta «KP GROUP — Ajustes de interfaces MV-015 y
+MV-017». Se preservan las modificaciones previas sin commit y no se inicia MV-018.
+Versiones confirmadas por Boost: PHP 8.3, Laravel 13.38.0, Filament 5.10.3,
+Spatie Permission 8.3.2 y MariaDB 10.11.14.
+
+### Implementación
+
+- Se agrega `TrackSectionResource` en `Configuración > Tramos`, con páginas de
+  listado, creación y edición. Convive con `SectionsRelationManager` en Editar Vía.
+  Ambas interfaces conservan validación y Policy comunes, sin eliminación física.
+- Selector con etiquetas Cliente — Planta — Vía; en creación limita opciones a
+  infraestructura activa. En edición muestra la Vía propietaria deshabilitada;
+  la regla Eloquent de MV-017 continúa bloqueando reasignación. Tabla con Cliente,
+  Planta, Vía, tramo, código, estado, búsqueda por nombre/código y filtros por
+  Planta/Vía/estado.
+- `TrackForm` valida código nullable único dentro de la Planta y conserva el
+  código actual al editar. Migración incremental
+  `2026_11_03_163105_add_plant_code_unique_to_tracks_table.php` agrega
+  `UNIQUE(plant_id, code)` sin cambiar la migración original ni reconstruir la
+  tabla; conserva `UNIQUE(plant_id, name)`.
+
+### Consulta MariaDB y verificación
+
+- Consulta Boost solo lectura ejecutada: `SELECT plant_id, code, COUNT(*) AS
+  occurrences FROM tracks WHERE code IS NOT NULL GROUP BY plant_id, code HAVING
+  COUNT(*) > 1 ORDER BY plant_id, code`. Resultado: `[]` (ningún código no nulo
+  duplicado por Planta). Se confirmó `code` nullable y el índice único existente
+  `(plant_id, name)`. No se modificaron datos, no hubo seeders y la migración
+  nueva no se aplicó en MariaDB.
+- Pruebas enfocadas SQLite `:memory:`: **32 pruebas, 375 aserciones, 0 fallos**,
+  incluyendo `SectionsRelationManager` y la migración incremental.
+- Suite completa aislada: **110 pruebas, 643 aserciones, 0 fallos**. La corrida
+  usó `APP_ENV=testing`, conexión efectiva SQLite `:memory:`, URL vacía y FK
+  activadas mediante `DatabaseTestCase`; se comprobó que el archivo de caché
+  indicado no existiera antes de arrancar.
+- Pruebas enfocadas para el catálogo y regresiones relacionadas: **33 pruebas,
+  377 aserciones, 0 fallos**; el catálogo por sí solo: 5 pruebas.
+  Pint `--dirty --format agent`, `php -l` para PHP añadidos/modificados y
+  `git diff --check` pasaron.
+- Verificación visual en navegador pendiente. Revisar **Configuración > Tramos**
+  para alta, tabla, búsqueda, filtros, edición y cambio de estado; después abrir
+  **Configuración > Vías > Editar Vía** y confirmar el Relation Manager. Verificar
+  la denegación de Supervisor y el selector/propiedad de Vía con Administrador o
+  Jefe de supervisores.
+
+Comando exacto propuesto para aplicar la migración en MariaDB solo con autorización
+posterior y destino confirmado:
+
+```bash
+php artisan migrate --database=mariadb --path=database/migrations/2026_11_03_163105_add_plant_code_unique_to_tracks_table.php --no-interaction
+```
+
+Archivos de esta ampliación: Resource, formulario, tabla y páginas de Tramos;
+migración compuesta; ajuste de `TrackForm`; pruebas `TrackSectionCatalogTest` y
+actualización de `TrackMigrationsTest`/expectativa en prueba de catálogo de Vías;
+modelo de datos, decisiones y este estado. No se cambia `track_sections`, el seeder,
+Gantt, fuentes ni `.env`; no hubo commit o push.
+
+Mensaje de commit propuesto: `feat: añadir catálogo de tramos y unicidad de código por planta`.
+
+## Corrección MV-017 — códigos únicos por Vía en Tramos — 2026-11-03
+
+Autorización: solicitud adjunta «KP GROUP — Corrección MV-017 — Validación de
+códigos únicos por Vía en Tramos». Se preservan los cambios anteriores sin commit.
+
+### Resultado
+
+- El campo opcional `code` ahora valida unicidad por `track_id` al crear y editar
+  desde el catálogo independiente y el Relation Manager. La edición ignora el
+  propio Tramo; el Relation Manager usa el registro propietario para determinar
+  la Vía, no un dato del formulario. Se mantiene la unicidad del nombre.
+- Nueva migración incremental
+  `2026_11_03_180740_add_track_code_unique_to_track_sections_table.php` agrega
+  `UNIQUE(track_id, code)` y su `down()` elimina solo ese índice. Antes de alterar
+  el esquema comprueba duplicados y, si hay, aborta indicando Vía, código, total e
+  IDs. Conserva la tabla y `UNIQUE(track_id, name)`.
+- La consulta MariaDB de solo lectura indicada en la solicitud halló un grupo:
+  `track_id=1`, `code=t1`, tres registros (`id=1, 3, 4`). La consulta adicional
+  de identificadores confirmó esos mismos IDs. No se modificaron códigos ni se
+  aplicaron migraciones o seeders en MariaDB.
+
+### Regularización manual pendiente
+
+Revisar los Tramos `1`, `3` y `4` de la Vía `1` con el responsable y determinar
+el código correcto para cada uno. Actualizar manualmente los registros aprobados,
+sin borrar ni desactivar registros, y volver a ejecutar la consulta agrupada de
+duplicados. La migración solo podrá aplicarse cuando la consulta devuelva cero
+filas. Su guard también volverá a listar IDs si quedan duplicados.
+
+### Verificación
+
+- Pruebas enfocadas SQLite `:memory:`: **19 pruebas, 282 aserciones, 0 fallos**.
+  Suite completa aislada: **113 pruebas, 713 aserciones, 0 fallos**. `DatabaseTestCase`
+  validó `APP_ENV=testing`, SQLite `:memory:`, URL vacía y claves foráneas
+  activas; se comprobó que el archivo de caché configurado no existiera.
+- `vendor/bin/pint --dirty --format agent`, `php -l` de los PHP relevantes y
+  `git diff --check` pasaron.
+- No se hizo revisión en navegador; comprobar creación/edición desde ambos puntos
+  de entrada, códigos duplicados, mismo código entre Vías y códigos NULL.
+
+Comando para aplicar tras regularizar y volver a verificar los datos, sujeto a
+autorización posterior y confirmación del destino MariaDB:
+
+```bash
+php artisan migrate --database=mariadb --path=database/migrations/2026_11_03_180740_add_track_code_unique_to_track_sections_table.php --no-interaction
+```
+
+Archivos: ambos formularios, migración nueva y prueba de su guard, pruebas del
+catálogo/Relation Manager y migración, modelo de datos, decisiones y este estado.
+No se modifica el modelo funcional ni se inicia MV-018.
+Mensaje de commit propuesto: `fix: validar codigos de tramo unicos por via`.

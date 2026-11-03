@@ -213,3 +213,67 @@ asigna exactamente la lista definida a Administrador y Jefe y reemplaza cualquie
 permiso adicional que se les hubiera concedido fuera del seeder. La lectura de
 MariaDB observó actualmente 29 permisos en cada uno y 15 en Supervisor, sin los
 cuatro permisos nuevos; no ejecutar el seeder allí sin autorización de escritura.
+
+## MV-017 — administración de Tramos desde Vía — 2026-11-02
+
+Responsable: usuario responsable del proyecto. TrackSection se administra con
+Relation Manager nativo `sections` dentro de la edición de Track. No se crea un
+Resource global ni se modifica el esquema. El `track_id` lo asigna la relación
+propietaria; no aparece en el formulario y el modelo rechaza cambiar el propietario
+después de crear el tramo. La tabla consulta exclusivamente los tramos de esa Vía.
+
+`TrackSectionPolicy` reutiliza `maintenance.track.view` y
+`maintenance.track.manage`; no se añaden permisos. `canViewForRecord()` comprueba
+de nuevo el tipo/existencia de la Vía y la autorización sobre el propietario en
+la página de edición de Track. No hay acciones de borrado. Las altas siguen
+bloqueadas cuando Cliente, Planta o Vía están inactivos. Registros históricos
+existentes siguen visibles y editables; la edición no comprueba estados para
+bloquear correcciones.
+
+## Ajustes de interfaces MV-015/MV-017 — 2026-11-03
+
+Responsable: usuario responsable del proyecto. Referencia: solicitud adjunta
+«KP GROUP — Ajustes de interfaces MV-015 y MV-017», apartados 2–8. Se conserva
+`SectionsRelationManager` y se agrega el Resource independiente `TrackSection`,
+ambos con `TrackSectionPolicy` y permisos existentes `maintenance.track.view` /
+`maintenance.track.manage`. Administrador y Jefe de supervisores pueden consultar
+y administrar; Supervisor no accede al catálogo global. No hay eliminación física.
+
+En el catálogo se selecciona una Vía activa bajo Planta y Cliente activos; el
+selector identifica Cliente, Planta y Vía. La propietaria queda deshabilitada en
+edición y el modelo continúa rechazando cualquier cambio de `track_id`. Se permite
+corregir tramos históricos vinculados con infraestructura inactiva. La tabla
+global ofrece búsqueda, filtros por Planta/Vía/estado y activación lógica. No se
+cambia el esquema de `track_sections` ni se agrega relación con TrackSwitch.
+
+El responsable aprobó además `UNIQUE(plant_id, code)` en `tracks`, conservando
+`UNIQUE(plant_id, name)`. `code` permanece nullable: códigos no nulos pueden
+repetirse entre Plantas, pero no dentro de una misma Planta; varios NULL por
+Planta son válidos. El formulario valida la combinación al crear y editar, con
+mensaje en español e ignorando la fila actual. No se generan ni modifican códigos
+automáticamente. La migración aditiva
+`2026_11_03_163105_add_plant_code_unique_to_tracks_table.php` añade o retira solo
+el índice, sin recrear la tabla. La consulta MariaDB de solo lectura no encontró
+grupos duplicados no nulos (`[]`); no se alteraron datos ni se aplicó la migración.
+
+## Corrección MV-017 — códigos únicos por Vía — 2026-11-03
+
+Responsable: usuario responsable del proyecto. Referencia: solicitud adjunta
+«KP GROUP — Corrección MV-017 — Validación de códigos únicos por Vía en Tramos».
+`TrackSection.code` sigue siendo opcional, pero los valores no nulos se validan y
+se restringen como únicos dentro de `track_id`; otra Vía puede reutilizar el
+código y una misma Vía puede tener múltiples NULL. La regla aplica en alta y
+edición de `TrackSectionResource` y `SectionsRelationManager`, ignorando el
+registro editado. El Relation Manager usa siempre el `track_id` del propietario.
+No se cambia el modelo funcional ni se generan o modifican códigos.
+
+Se agrega la migración incremental
+`2026_11_03_180740_add_track_code_unique_to_track_sections_table.php`, con
+`UNIQUE(track_id, code)`. Antes del índice, consulta códigos no nulos duplicados;
+si encuentra alguno, aborta con vía, código, total e IDs para corrección manual.
+`down()` elimina solo este índice. No reconstruye `track_sections` ni elimina
+`UNIQUE(track_id, name)`.
+
+Consulta de solo lectura MariaDB previa a la migración: `track_id=1`, `code=t1`,
+`total=3`, IDs `1, 3, 4`. La migración no se ha aplicado y los registros no se
+modificaron; aplicación pendiente de corrección manual y nueva revisión de datos.

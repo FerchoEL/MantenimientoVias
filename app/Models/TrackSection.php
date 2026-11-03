@@ -28,6 +28,14 @@ class TrackSection extends Model
             }
         });
 
+        static::updating(function (TrackSection $trackSection): void {
+            if ($trackSection->isDirty('track_id')) {
+                throw ValidationException::withMessages([
+                    'track_id' => 'No se puede cambiar la vía propietaria de un tramo.',
+                ]);
+            }
+        });
+
     }
 
     protected function casts(): array
