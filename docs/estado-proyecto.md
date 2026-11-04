@@ -830,3 +830,65 @@ Archivos: ambos formularios, migración nueva y prueba de su guard, pruebas del
 catálogo/Relation Manager y migración, modelo de datos, decisiones y este estado.
 No se modifica el modelo funcional ni se inicia MV-018.
 Mensaje de commit propuesto: `fix: validar codigos de tramo unicos por via`.
+
+## MV-018 — croquis y almacenamiento externo — pendiente
+
+La empresa todavía no ha proporcionado ni autorizado el método de facturación requerido para Google Cloud Storage. Por ello quedan pendientes la carga, consulta y reemplazo de croquis; se retomarán cuando se defina y autorice el almacenamiento. No se añadieron credenciales, dependencias, configuración de nube ni datos de demostración. Este pendiente no impide validar los catálogos del Core ferroviario.
+
+## MV-019 — validación de integridad y seguridad — 2026-11-04
+
+Autorización: solicitud adjunta «KP GROUP — SEMANA 02 — MV-019 y MV-020». Se revisaron AGENTS.md, PLANS.md, dominio, documentación, Resources, Policies, modelos, migraciones, factories, seeders y pruebas. Boost confirmó PHP 8.3, Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2 y MariaDB 10.11.14.
+
+### Matriz de validación
+
+| Área | Resultado comprobado |
+|---|---|
+| Relaciones | `Client 1:N Plant`, `Plant 1:N Track/TrackSwitch` y `Track 1:N TrackSection`; `TrackSwitch` no es hijo de vía ni contiene tramos. |
+| Integridad | FKs restrictivas en `plants.client_id`, `tracks.plant_id`, `track_switches.plant_id` y `track_sections.track_id`; sin borrado físico en Policies ni Resources. |
+| Unicidad | MariaDB tiene `UNIQUE(plant_id, name)` y `UNIQUE(plant_id, code)` para vías, `UNIQUE(plant_id, code)` para cambios y `UNIQUE(track_id, name)` para tramos. SQLite cubre además `UNIQUE(track_id, code)`. |
+| Estado e histórico | Altas en infraestructura inactiva se rechazan; desactivar conserva los registros relacionados; acciones Filament activan/desactivan sin eliminar. |
+| Autorización | Administrador y Jefe de supervisores tienen permisos de administración; Supervisor no tiene permisos de catálogos, ni acceso por URL directa ni por solicitudes Livewire. Policies protegen operaciones, y las acciones personalizadas verifican `update`. |
+
+### MariaDB: resultado y pendiente
+
+Las consultas de solo lectura confirmaron 2 clientes, 2 plantas, 2 vías, 2 cambios y 5 tramos. No hay grupos duplicados no nulos de código de tramo actualmente. No obstante, la migración `2026_11_03_180740_add_track_code_unique_to_track_sections_table.php` no figura en `migrations`; por ello MariaDB aún no tiene el índice `UNIQUE(track_id, code)`. La migración no se ejecutó: requiere autorización separada y revisión del destino. No se aplicaron migraciones, seeders, cambios de datos ni operaciones destructivas.
+
+### Automatización ejecutada
+
+- Suite completa con `testing` + SQLite `:memory:` y FK activadas: **113 pruebas, 713 aserciones, 0 fallos**.
+- `vendor/bin/pint --dirty --format agent`: correcto.
+- `php -l` sobre `app/`, `database/migrations/` y `tests/`: sin errores.
+- `git diff --check`: correcto.
+
+No se agregaron pruebas: las existentes ya cubren los casos de MV-019, incluida la salvaguarda de la migración pendiente de códigos de tramo.
+
+## MV-020 — demostración funcional y documentación — 2026-11-04
+
+Los módulos disponibles para Dirección son Clientes, Plantas, Vías, Cambios de vía y Tramos, tanto desde la Vía como desde el catálogo independiente. La demostración excluye expresamente croquis y almacenamiento en la nube mientras MV-018 siga pendiente. Usar datos efímeros de SQLite `:memory:` o un entorno de demostración aislado autorizado; no ejecutar seeders ni insertar datos de demostración en MariaDB de desarrollo.
+
+### Guion propuesto para Dirección
+
+1. Iniciar sesión como Administrador o Jefe de supervisores y abrir Configuración.
+2. Registrar un Cliente activo y una Planta activa vinculada; mostrar el historial al desactivar/reactivar un catálogo, sin borrar filas.
+3. En la Planta, registrar una Vía y un Cambio de vía; intentar repetir el nombre de la Vía o el código del Cambio para mostrar la validación.
+4. Desde Editar Vía, crear un Tramo y probar nombre/código duplicado dentro de esa Vía; mostrar que el mismo código puede usarse en otra Vía y que el Tramo no se relaciona con Cambios.
+5. Abrir Configuración > Tramos, crear y editar un segundo Tramo con el selector Cliente — Planta — Vía, filtros y búsqueda.
+6. Activar/desactivar una Vía, Cambio y Tramo para mostrar conservación histórica.
+7. Iniciar sesión como Supervisor e intentar abrir una URL directa de catálogo: el acceso debe ser denegado. Cerrar indicando que no se muestra ningún flujo de croquis ni integración cloud.
+
+### Estado de cierre parcial de Etapa 1
+
+| MV | Estado al 2026-11-04 |
+|---|---|
+| MV-011 | Diseño de vías: implementado y verificado en SQLite. |
+| MV-012 | Modelo y migración de vías/cambios: implementado; MariaDB conserva el esquema base aplicado. |
+| MV-013 | Diseño de tramos: implementado y verificado en SQLite. |
+| MV-014 | Modelo y migración de tramos: implementado; MariaDB conserva el esquema base aplicado. |
+| MV-015 | Administración Filament de vías: implementada y cubierta por pruebas; revisión visual manual pendiente. |
+| MV-016 | Administración Filament de cambios: implementada y cubierta por pruebas; revisión visual manual pendiente. |
+| MV-017 | Administración de tramos por vía y catálogo independiente: implementada y verificada en SQLite; MariaDB conserva pendiente el índice incremental de código por vía. |
+| MV-018 | Pendiente por dependencia externa de Google Cloud Storage. |
+| MV-019 | Terminado verificado, con la incidencia MariaDB de migración pendiente registrada. |
+| MV-020 | Terminado: documentación y guion de demostración preparados. |
+
+La Etapa 1 no se declara terminada mientras MV-018 y la aplicación autorizada de la migración pendiente de MariaDB continúen abiertas. No se creó commit ni push. Commit propuesto al cierre del bloque: `docs: registrar validacion y demostracion de etapa 1`.

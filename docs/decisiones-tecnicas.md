@@ -277,3 +277,13 @@ si encuentra alguno, aborta con vía, código, total e IDs para corrección manu
 Consulta de solo lectura MariaDB previa a la migración: `track_id=1`, `code=t1`,
 `total=3`, IDs `1, 3, 4`. La migración no se ha aplicado y los registros no se
 modificaron; aplicación pendiente de corrección manual y nueva revisión de datos.
+
+## MV-018 — croquis y almacenamiento externo — pendiente al 2026-11-04
+
+Responsable: empresa. Google Cloud Storage sigue sin método de facturación proporcionado o autorizado. No se elige proveedor alterno ni se implementa carga, consulta o reemplazo de croquis hasta contar con esa decisión corporativa.
+
+## MV-019/MV-020 — validación y demostración — 2026-11-04
+
+Responsable: usuario responsable del proyecto. La revisión integral confirmó que los catálogos de Clientes, Plantas, Vías, Cambios y Tramos se pueden demostrar sin MV-018. La demostración debe excluir croquis y nube, y usar SQLite `:memory:` o un entorno aislado autorizado, nunca seeders o datos de demostración en MariaDB de desarrollo.
+
+La inspección MariaDB posterior halló que ya no existen grupos duplicados no nulos de `track_sections.code`. Se conserva el registro histórico de la consulta previa de tres duplicados; no se infiere cómo fueron regularizados y esta revisión no modificó datos. La migración `2026_11_03_180740_add_track_code_unique_to_track_sections_table.php` sigue sin registrarse ni aplicarse, por lo que aún falta la garantía física `UNIQUE(track_id, code)` en MariaDB. Su aplicación requiere autorización separada, confirmación del destino y revisión previa de duplicados.
