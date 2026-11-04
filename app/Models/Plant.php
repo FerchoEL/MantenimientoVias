@@ -61,4 +61,10 @@ class Plant extends Model
     {
         return $this->hasMany(TrackSwitch::class);
     }
+
+    /** @return HasMany<MaintenanceService, $this> */
+    public function maintenanceServices(): HasMany
+    {
+        return $this->hasMany(MaintenanceService::class);
+    }
 }

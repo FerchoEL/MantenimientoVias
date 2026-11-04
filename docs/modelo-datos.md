@@ -120,3 +120,224 @@ Semana 02.
 - La inactividad bloquea altas nuevas, pero no desactiva registros relacionados;
   las ediciones no reciben un bloqueo general. Sin SoftDeletes ni campos de
   kilometraje, longitud física, numeración o coordenadas.
+
+## MV-021 — diseño de MaintenanceService — 2026-11-04
+
+Diseño documental para revisión; no implementa tabla, modelo ni interfaces.
+Fuente contrastada: documentación v1.1, sección 7, página impresa 12 (atributos),
+secciones 8–9 (relaciones/acceso) y 13 (estados); reglas originales RN-001…003,
+RN-026, RC-002/003/029/032…035. La solicitud «Semana 03 — MV-021» confirma el
+alcance. Las propuestas pendientes se identifican en
+[decisiones técnicas](decisiones-tecnicas.md#mv-021--acuerdos-y-propuestas-del-modelo--2026-11-04).
+
+### Entidad y atributos
+
+`MaintenanceService` representa un servicio de mantenimiento de una sola Planta,
+con identidad propia, fechas, pedido/contrato opcional y periodicidad de reporte.
+El Cliente se obtiene mediante Plant; no se duplica `client_id` ni se almacena un
+supervisor único en el servicio. La frecuencia no representa su duración total.
+
+| Atributo | Tipo físico propuesto | ¿NULL? | Significado / origen |
+|---|---|---|---|
+| `id` | BIGINT UNSIGNED, PK, autoincremental | No | Identidad; unsigned/autoincrement derivados de las convenciones existentes |
+| `plant_id` | BIGINT UNSIGNED, FK a `plants.id` | No | Planta propietaria; tipo compatible con el esquema MariaDB inspeccionado |
+| `name` | VARCHAR(150) | No | Nombre del servicio, fuente v1.1 |
+| `order_number` | VARCHAR(80) | Sí | Referencia textual de pedido/contrato, no importe ni folio de reporte |
+| `start_date` | DATE | No | Inicio del servicio |
+| `end_date` | DATE | Sí | Fin; NULL significa sin fecha final definida |
+| `report_frequency` | VARCHAR(20) | No | `weekly`, `biweekly`, `monthly`, `none`; fuente admite enum/string, longitud técnica propuesta |
+| `status` | VARCHAR(20) | No | `planned`, `active`, `completed`, `cancelled`; fuente admite enum/string, longitud técnica propuesta |
+| `notes` | TEXT | Sí | Notas opcionales |
+
+No se establece default funcional: se propone `planned` para aprobación; la
+frecuencia deberá seleccionarse expresamente. No se añaden `active`, `deleted_at`,
+importes, adjuntos ni campos de auditoría. La tabla de la fuente no enumera
+`created_at`/`updated_at`; aunque los modelos existentes los usan, su incorporación
+queda pendiente. Si se aprueban, serían TIMESTAMP nullable según `timestamps()`;
+si se mantiene exactamente esta tabla, el futuro modelo deberá deshabilitar los
+timestamps automáticos. No confundir estos timestamps con auditoría de actores.
+
+Propuesta técnica: enums PHP respaldados por string `ReportFrequency`
+(`Weekly`, `Biweekly`, `Monthly`, `None`) y `MaintenanceServiceStatus`
+(`Planned`, `Active`, `Completed`, `Cancelled`), con los valores persistidos de la
+tabla y etiquetas españolas en la futura UI. Usar `casts()` para ambos enums y
+`date` para las dos fechas; `Rule::enum` para validar entradas. Mantener relaciones
+tipadas y asignación explícita siguiendo los modelos existentes. No crear archivos
+ni nuevas carpetas en esta fase. VARCHAR evita acoplar la ampliación del catálogo
+a un ENUM SQL, pero el cast no impide SQL inválido: un CHECK de pertenencia es una
+opción técnica a decidir y probar en MariaDB durante MV-022.
+
+### Relaciones lógicas y dependencias
+
+```mermaid
+erDiagram
+    Client ||--o{ Plant : contiene
+    Plant ||--o{ MaintenanceService : tiene
+    MaintenanceService ||--o{ MaintenanceServiceSupervisor : asignaciones_futuras
+    User ||--o{ MaintenanceServiceSupervisor : supervisor
+    MaintenanceService ||--o{ MaintenancePeriod : periodos_futuros
+```
+
+- Propuestas para MV-022: `Plant::maintenanceServices(): HasMany` y
+  `MaintenanceService::plant(): BelongsTo`. No se modifican ahora los modelos.
+- Futuras: `MaintenanceService::supervisorAssignments(): HasMany` y
+  `MaintenanceService::periods(): HasMany`; cada asignación pertenece al servicio
+  y a User; cada periodo pertenece al servicio. Los nombres de clase/método son
+  propuestas, no código existente. Asignaciones: MV-025/026; autorización: MV-027;
+  simultaneidad: MV-028; periodos: MV-029/030.
+- Precisión respecto al resumen conceptual anterior: la sección 7 de v1.1 llama
+  a ambas FKs futuras **`maintenance_service_id`**, no `service_id`. Este último
+  era abreviatura del resumen, no un nombre aprobado de columna. Se conserva el
+  resumen histórico y se explicita aquí la correspondencia para MV-021.
+- RN-001 permite varios supervisores por servicio y varias asignaciones de un
+  supervisor entre servicios/plantas, con fechas superpuestas. No habrá unicidad
+  de `plant_id`, supervisor o intervalos que imponga exclusividad. Las reglas de
+  repetición de una asignación al mismo servicio se resolverán en MV-025.
+
+### Integridad, validación e índices propuestos
+
+- PK `id`; FK obligatoria `plant_id → plants.id`, con `ON DELETE RESTRICT` y sin
+  cascadas de actualización. El índice de soporte de la FK basta inicialmente;
+  no duplicarlo. La FK impide borrar una Planta referenciada, **no** borrar el
+  Servicio: proponer denegación de eliminación en aplicación y FKs restrictivas
+  desde asignaciones/periodos cuando existan. Conservar el histórico es regla
+  aprobada; impedir también borrar servicios sin dependencias es propuesta.
+- Validar nombre requerido y máximo 150; pedido nullable/string/máximo 80; notas
+  nullable/string; planta existente; fecha inicial válida; fecha final nullable
+  y, como propuesta a aprobar, `after_or_equal:start_date`. Permitir fechas iguales
+  admitiría servicio de un día. No exigir inicio futuro ni fin por estado sin decisión.
+- No proponer UNIQUE sobre `plant_id`, nombre, pedido o fechas mientras no exista
+  regla aprobada. Servicios simultáneos no equivalen a duplicados accidentales.
+  Un índice no único `(plant_id, status)` solo se justificaría con consultas reales
+  del futuro listado; no añadir índices aislados de baja selectividad ni un índice
+  para pedido sin evidencia de uso. No se decide normalización/collation implícita.
+- El bloqueo general de nuevas operaciones bajo Cliente inactivo está aprobado.
+  Su clasificación concreta para alta de servicios y el tratamiento de Planta
+  inactiva deben confirmarse: se propone exigir ambos activos al crear, sin
+  modificar servicios existentes al desactivar. Una FK no valida estados activos.
+- Lectura histórica autorizada debe conservarse. No se infieren prohibiciones de
+  corrección, reasignación de Planta, reapertura o cierre por inactividad. Definir
+  estas operaciones antes de implementarlas; no trasladar automáticamente reglas
+  específicas de Vías/Tramos al Servicio.
+- RC-029 y v1.1 §13 describen `planned → active → completed / cancelled`.
+  No se deducen automatismos por fecha, cancelación directa desde planned,
+  reaperturas ni efectos en periodos/asignaciones. La matriz detallada se valida
+  en MV-024. Finalizar o cancelar conserva relaciones e histórico.
+- `none` significa sin reporte, no sin operación ni sin Periodos: RN-003 sigue
+  exigiendo un periodo vigente para actividades, hallazgos y movimientos. Quedan
+  pendientes su delimitación/apertura/cierre y la interacción con reportes; no
+  crear un periodo ilimitado ni cortes automáticos por inferencia.
+- La relación entre vigencia del Servicio y asignaciones requiere decidir límites
+  inclusivos, asignación sin fin en servicio con fin, fechas fuera del servicio y
+  cambios retroactivos. Se propone contener asignaciones dentro de la vigencia,
+  preservando siempre la superposición entre servicios; pendiente para MV-025.
+- RC-003/035 exige alcance por asignación vigente también en acceso por ID; esta
+  dependencia no autoriza modificar permisos, roles ni Policies en MV-021.
+
+### Casos revisados (evaluación de diseño, no pruebas ejecutadas)
+
+| Caso | Evaluación y límites |
+|---|---|
+| A — semanal | `weekly` representa la frecuencia; el servicio puede durar múltiples semanas. Día de corte y primer/último periodo parcial pendientes de MV-029. |
+| B — quincenal | `biweekly` válido; falta decidir quincenas de calendario frente a intervalos de 14/15 días. No codificar una interpretación todavía. |
+| C — simultáneos | Dos servicios activos de la misma Planta con fechas superpuestas son representables; no hay UNIQUE de Planta ni restricción de solapamiento. Duplicidad de nombre/pedido pendiente. |
+| D — supervisor compartido | Asignaciones independientes permiten servicios de distintas Plantas en fechas superpuestas; sin FK directa del Servicio a un supervisor único. |
+| E — sin terminación | `end_date = NULL` conserva inicio obligatorio; no implica estado eterno ni genera cierre automático. |
+| F — finalización/cancelación | Cambio de estado conserva identificadores, asignaciones y periodos históricos. Efectos operativos sobre registros abiertos y correcciones pendientes de definición. |
+
+El modelo representa A–F sin exclusividad; no acredita su implementación.
+MV-018 permanece pendiente de autorización corporativa de Google Cloud Storage
+y no bloquea este análisis. Próxima actividad del Gantt: MV-022, únicamente tras
+revisión/aprobación del modelo y de las decisiones que afecten su implementación.
+
+
+## MV-021 / MV-029 / MV-030 — periodicidad quincenal aprobada — 2026-11-04
+
+Aclaración posterior aprobada por el usuario responsable del proyecto el
+4 de noviembre de 2026. Sustituye exclusivamente la incertidumbre del caso B
+anterior sobre quincenas de calendario o intervalos de 14/15 días; el análisis
+original se conserva como historial. Referencia: solicitud «Actualización de
+decisión funcional MV-021 / MV-029 / MV-030» y registro en
+[decisiones técnicas](decisiones-tecnicas.md).
+
+La periodicidad `biweekly` corresponde a **15 días naturales consecutivos**,
+contados desde `maintenance_services.start_date`. El primer periodo inicia en
+esa fecha y termina 14 días después, con ambos extremos incluidos. Cada periodo
+posterior comienza al día siguiente del cierre del anterior. No se utilizan
+quincenas de calendario (1–15 y 16–fin de mes).
+
+Ejemplo aprobado para inicio del Servicio el 05/11/2026:
+
+| Periodo | Inicio | Fin (incluido) |
+|---|---|---|
+| 1 | 05/11/2026 | 19/11/2026 |
+| 2 | 20/11/2026 | 04/12/2026 |
+| 3 | 05/12/2026 | 19/12/2026 |
+
+La implementación corresponde a **MV-029/MV-030**, no a MV-021 ni MV-022.
+Permanecen pendientes de definición:
+
+- Tratamiento del último periodo parcial.
+- Fechas de corte de reportes semanales y mensuales.
+- Reglas para cambios posteriores de periodicidad.
+- Recordatorios automáticos de captura por correo.
+
+Esta actualización solo define el criterio funcional; no cambia atributos ni
+implementa generación de periodos, migraciones, modelos, formularios o
+notificaciones. Los demás pendientes del diseño permanecen abiertos.
+
+
+## MV-022 — Servicio implementado — 2026-11-04
+
+La solicitud «Semana 03 — MV-022» aprueba MV-021 con estado inicial `planned`,
+altas solo bajo Cliente y Planta activos, nombres y pedidos repetibles,
+conservación sin eliminación física, fin opcional no anterior al inicio y
+timestamps Laravel. Esta sección actualiza los pendientes históricos correspondientes.
+
+Esquema implementado en la migración
+`2026_11_04_201927_create_maintenance_services_table.php`: id BIGINT UNSIGNED PK
+autoincremental; plant_id BIGINT UNSIGNED NOT NULL, FK a plants.id con DELETE
+RESTRICT; name VARCHAR(150) NOT NULL; order_number VARCHAR(80) NULL; start_date
+DATE NOT NULL; end_date DATE NULL; report_frequency VARCHAR(20) NOT NULL sin
+default; status VARCHAR(20) NOT NULL DEFAULT planned; notes TEXT NULL;
+created_at/updated_at TIMESTAMP NULL. Sin UNIQUE salvo PK, sin columnas adicionales.
+
+`MaintenanceService::plant()` y `Plant::maintenanceServices()` son relaciones
+tipadas. Modelo con HasFactory, Fillable explícito, casts date y enums string
+`App\ReportFrequency` / `App\MaintenanceServiceStatus`. Se conservó el destino
+predeterminado de `make:enum`, sin crear una carpeta base nueva. Factory con Planta
+válida, inicio fijo reproducible, fin/pedido/notas nulos y frecuencia semanal;
+acepta overrides mediante state/create para fechas, frecuencia, estado y duplicados.
+El default planned existe en BD y modelo para observarlo antes de guardar.
+
+Validaciones de modelo en saving: nombre requerido/máximo 150, pedido opcional/
+máximo 80, inicio requerido/date, fin nullable/date/after_or_equal:start_date,
+frecuencia y estado requeridos y validados contra enums, notas opcionales string.
+En creating se consulta infraestructura activa sin confiar en relaciones cargadas.
+En deleting se rechaza la eliminación mediante ValidationException.
+La FK garantiza existencia de Planta; no comprueba estados activos.
+
+No hay CHECK: coherencia de fechas y dominios se validan en Laravel. SQLite no
+impone longitudes VARCHAR ni unsigned como MariaDB. La FK, nulabilidad y default
+se probaron en SQLite; la migración no se ejecutó en MariaDB. Eventos se omiten
+con operaciones masivas, SQL directo y escrituras silenciosas: no son una barrera
+física universal de validación o borrado. Ningún flujo implementado debe usarlas
+para eludir estas reglas. La comprobación de activos no es atómica ante una
+desactivación concurrente; resolver coordinación en futuros escritores.
+
+`planned` significa registrado y pendiente de inicio operativo, independiente del
+Programa de trabajo. Etiquetas futuras: planned «Planeado», active «En ejecución»,
+completed «Finalizado», cancelled «Cancelado»; frecuencias «Semanal», «Quincenal»,
+«Mensual», «Sin reporte». No se implementan UI ni transiciones.
+La periodicidad la configura el responsable autorizado por Servicio al crearlo;
+no la elige el Supervisor durante captura. `order_number` no determina acceso.
+
+Para MV-025…028: asignaciones temporales N:M, simultáneas y superpuestas entre
+Plantas; un Servicio vigente podrá abrirse directamente, varios requerirán elegir
+entre asignados; impedir acceso ajeno por ID/peticiones. No hay aún relaciones de
+asignaciones ni Policies operativas. MV-029/MV-030 implementará quincenas de 15 días
+naturales desde start_date, extremos incluidos, conforme al ejemplo ya registrado;
+no quincenas calendario. `none` no elimina la obligación futura de Periodo vigente.
+Último periodo parcial, cortes semanales/mensuales y cambios de frecuencia siguen
+pendientes. Recordatorios por correo: requisito futuro dependiente de Periodos y
+Programa de trabajo, sin diseño ni implementación aquí.

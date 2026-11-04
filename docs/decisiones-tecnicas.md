@@ -287,3 +287,162 @@ Responsable: empresa. Google Cloud Storage sigue sin método de facturación pro
 Responsable: usuario responsable del proyecto. La revisión integral confirmó que los catálogos de Clientes, Plantas, Vías, Cambios y Tramos se pueden demostrar sin MV-018. La demostración debe excluir croquis y nube, y usar SQLite `:memory:` o un entorno aislado autorizado, nunca seeders o datos de demostración en MariaDB de desarrollo.
 
 La inspección MariaDB posterior halló que ya no existen grupos duplicados no nulos de `track_sections.code`. Se conserva el registro histórico de la consulta previa de tres duplicados; no se infiere cómo fueron regularizados y esta revisión no modificó datos. La migración `2026_11_03_180740_add_track_code_unique_to_track_sections_table.php` sigue sin registrarse ni aplicarse, por lo que aún falta la garantía física `UNIQUE(track_id, code)` en MariaDB. Su aplicación requiere autorización separada, confirmación del destino y revisión previa de duplicados.
+
+
+## MV-021 — acuerdos y propuestas del modelo — 2026-11-04
+
+Referencia: solicitud adjunta «KP GROUP — SEMANA 03 — MV-021», apartados 2–9;
+documentación v1.1 §7 (p. 12), §8–9 y §13; reglas originales RN-001…003,
+RN-026 y RC-002/003/029/032…035. Responsable funcional y de aprobación: usuario
+responsable del proyecto. Autor de las propuestas técnicas: Codex. Fecha de este
+registro: 2026-11-04. Autorizar el análisis no equivale a aprobar estas propuestas
+ni a autorizar MV-022. Se conserva el historial anterior.
+
+### Confirmado por las fuentes y la solicitud
+
+- Servicio pertenece a una Planta. Nueve atributos y valores de frecuencia/estado
+  contrastados en la tabla de v1.1; pedido, fin y notas opcionales.
+- Asignaciones temporales múltiples y simultáneas, incluso entre distintas Plantas
+  y Clientes; no exclusividad de Supervisor o Servicio por Planta (RN-001 y casos C/D).
+- Periodicidad de reporte distinta de duración; `none` es sin reporte (RN-002).
+  No elimina la obligación de Periodo vigente para operación (RN-003).
+- RC-029 y v1.1 §13 sí describen la secuencia principal de estados. Se preserva
+  esa evidencia; no se interpreta como una matriz completa ni un automatismo.
+- Preservar histórico e integridad; autorización por asignación vigente también
+  ante URL/ID directo. Sin cambios a roles, permisos ni módulos existentes.
+
+Impacto futuro: relaciones 1:N, campos nullable explícitos, ausencia de
+restricciones de exclusividad, conservación histórica y pruebas de acceso por
+asignación. Estas reglas no están implementadas por este bloque.
+
+### Decisiones técnicas derivadas, propuestas para revisión
+
+- BIGINT UNSIGNED autoincremental y FK del mismo tipo que `plants.id`; FK
+  `ON DELETE RESTRICT`, índice de soporte sin duplicados. Derivadas del esquema
+  real y de la conservación del histórico; pendientes de implementación MV-022.
+- Preferir VARCHAR(20) para ambos dominios, enums PHP respaldados por string,
+  `casts()` y `Rule::enum`; fechas DATE con cast `date`. La fuente admite
+  enum/string y no fija longitud: 20 es propuesta técnica, no regla de negocio.
+  Evaluar CHECK de valores en MariaDB; los casts solos no protegen SQL directo.
+- No agregar índices únicos sin aprobación. Evaluar `(plant_id, status)` solo
+  al conocer consultas reales; no impedir servicios simultáneos.
+- La fuente usa `maintenance_service_id` en tablas futuras; el `service_id` del
+  resumen anterior es abreviatura conceptual. La precisión se registra en MV-021
+  sin modificar ni implementar asignaciones/periodos.
+
+Fundamento técnico consultado mediante Boost `search-docs`, Laravel 13:
+[enum casts](https://github.com/laravel/docs/blob/13.x/eloquent-mutators.md#enum-casting),
+[validación](https://github.com/laravel/docs/blob/13.x/validation.md) y
+[migraciones](https://github.com/laravel/docs/blob/13.x/migrations.md).
+
+### Decisiones funcionales pendientes (no son P-01…P-06)
+
+Todas las siguientes requieren confirmación del responsable; ninguna se convierte
+en restricción definitiva en MV-021. La columna de impacto indica cuándo resolver.
+
+| Tema | Propuesta / pregunta concreta | Impacto en implementación y verificación |
+|---|---|---|
+| Fechas | Exigir fin >= inicio cuando exista; permitir servicio de un día y sin fin. No exigir fecha futura. | MV-022/023: validar alta y edición; probar igual, anterior, posterior y NULL; decidir CHECK de fechas. |
+| Cliente/Planta inactivos | El bloqueo general de nuevas operaciones bajo Cliente inactivo ya está aprobado. Confirmar clasificación del alta de Servicio y exigir ambos activos al crear, sin cascada al desactivar. | MV-022/023: rechazo en puntos de escritura, lectura histórica y concurrencia; no asumir que FK/selector bastan. |
+| Edición histórica | Definir correcciones de nombre/pedido/notas, cambios de Planta, fechas/frecuencia y reactivación del contexto. Proponer preservar propietario cuando exista operación. | MV-023/024 y módulos posteriores: no introducir bloqueo general, cascada o modificación retroactiva de cortes; concretar auditoría. |
+| Duplicidad | Proponer no imponer unicidad de nombre o pedido; confirmar si se requiere distinguir duplicados accidentales dentro de una Planta. | MV-022/023: índices/validación; no confundir duplicado con simultaneidad; colación/normalización solo tras definir regla. |
+| Pedido/contrato | Referencia textual opcional de 80 caracteres. Confirmar si se comparte entre Servicios, si identifica pedido o contrato indistintamente y su alcance de unicidad. | MV-022/023: sin generación, patrón, obligatoriedad por estado, vínculo ERP ni lógica comercial inferidos. |
+| Estado inicial | Proponer `planned`; confirmar default y si se admite alta directamente en otro estado. | MV-022/023: default de BD y formulario coherentes; no inferirlo solo por la secuencia principal. |
+| Transiciones | Conservar planned → active → completed/cancelled. Definir cancelación desde planned, reapertura, actores y efectos sobre periodos/asignaciones abiertos. | MV-024: matriz y pruebas; sin automatismos por fecha ni cierre cascada. |
+| Frecuencia y `none` | Selección expresa. Confirmar anclaje semanal, quincenas calendario vs 14/15 días, meses, cortes parciales y cambios de frecuencia. Para `none`, definir periodos operativos y apertura/cierre sin reporte. | MV-029/030: RN-003 sigue vigente; no generar cortes ni un periodo perpetuo por inferencia. |
+| Vigencia de asignaciones | Proponer contención dentro de fechas del Servicio; resolver extremos inclusivos, fin abierto, cambios retroactivos y finalización/cancelación. | MV-025/026: mantener solapamientos entre servicios; pruebas de bordes sin exclusividad. |
+| Eliminación | Proponer denegar borrado de Servicios incluso sin dependencias; futuras FKs restrictivas protegen relaciones. | MV-022/023 y módulos posteriores: la FK a Plant por sí sola no impide borrar Servicio; no añadir SoftDeletes ni active. |
+| Timestamps/auditoría | Aprobar o descartar created_at/updated_at (no enumerados en v1.1); RC-032 no define aquí campos concretos de actor. | Resolver antes de MV-022: timestamps convencionales o deshabilitarlos en Eloquent; no añadir columnas de auditoría sin definición. |
+
+Recomendación: resolver primero fechas, inactividad, duplicidad/pedido, estado
+inicial, timestamps y restricciones físicas para aprobar MV-022. Las decisiones
+de transiciones, asignaciones y cortes pueden resolverse en sus actividades,
+siempre antes de implementar el comportamiento afectado. No se altera el Gantt.
+MV-018 continúa pendiente de autorización corporativa de Google Cloud Storage;
+no bloquea el análisis de Servicios ni autoriza proveedor alterno.
+
+
+## MV-021 / MV-029 / MV-030 — decisión aprobada de quincenas — 2026-11-04
+
+**Estado:** aprobado. **Fecha de aprobación:** 4 de noviembre de 2026.
+**Responsable:** usuario responsable del proyecto. **Referencia:** solicitud
+«KP GROUP — Actualización de decisión funcional MV-021 / MV-029 / MV-030».
+Esta decisión resuelve la alternativa de quincenas calendario frente a intervalos
+de 14/15 días de la fila histórica «Frecuencia y `none`»; no aprueba los demás
+pendientes de esa fila ni del modelo.
+
+La periodicidad `biweekly` corresponde a **15 días naturales consecutivos**,
+contados desde `maintenance_services.start_date`. El primer periodo inicia en
+esa fecha y termina 14 días después, con ambos extremos incluidos. Cada periodo
+posterior comienza al día siguiente del cierre del anterior. No se utilizan
+quincenas de calendario (1–15 y 16–fin de mes).
+
+Ejemplo aprobado para inicio del Servicio el 05/11/2026:
+
+| Periodo | Inicio | Fin (incluido) |
+|---|---|---|
+| 1 | 05/11/2026 | 19/11/2026 |
+| 2 | 20/11/2026 | 04/12/2026 |
+| 3 | 05/12/2026 | 19/12/2026 |
+
+La implementación corresponde a **MV-029/MV-030**, no a MV-021 ni MV-022.
+Permanecen pendientes de definición:
+
+- Tratamiento del último periodo parcial.
+- Fechas de corte de reportes semanales y mensuales.
+- Reglas para cambios posteriores de periodicidad.
+- Recordatorios automáticos de captura por correo.
+
+**Impacto:** MV-029/MV-030 deberán usar este anclaje y duración para delimitar los
+periodos quincenales y validar continuidad, extremos inclusivos y cruces de mes
+con el ejemplo aprobado. Esta decisión no exige cambios de esquema del Servicio
+ni autoriza generación automática, formularios o notificaciones en este bloque.
+El comportamiento de `none` sigue pendiente según el registro previo.
+
+
+## MV-022 — aprobación e implementación del modelo — 2026-11-04
+
+Responsable: usuario responsable del proyecto. Referencia: solicitud adjunta
+«KP GROUP — SEMANA 03 — MV-022», apartados 2–10. Estado funcional: **MV-021
+aprobado** con default planned, altas bajo Cliente/Planta activos, nombres y
+pedidos repetibles, conservación sin eliminación física, end_date opcional y
+mayor o igual a start_date, y timestamps convencionales. Sustituye esos pendientes
+del registro inicial sin eliminar el historial. No aprueba reglas de reasignación,
+reapertura ni modificación retroactiva del histórico.
+
+Decisiones técnicas de este bloque:
+
+- Validación en saving y control de infraestructura en creating con
+  ValidationException, siguiendo las convenciones de modelos existentes.
+  Las fechas se verifican también al guardar cambios, sin implementar un flujo
+  de edición ni restricciones adicionales de reasignación/estado.
+- Enums PHP string y almacenamiento VARCHAR(20). Rule::enum valida atributos
+  persistibles en saving; los casts no son una validación completa. Asignar un
+  string inválido directamente a un cast enum puede lanzar ValueError antes
+  del evento; una fecha no interpretable puede fallar durante su cast. El futuro
+  formulario deberá validar entradas antes de asignarlas al modelo.
+- CHECK evaluado y no añadido: Blueprint instalado no ofrece un método dedicado
+  de CHECK; añadirlo después de crear tabla exigiría SQL específico y SQLite no
+  ofrece el mismo ALTER TABLE ADD CONSTRAINT que MariaDB. No introducir DDL no
+  verificado en MariaDB ni reconstrucción de tabla para estas pruebas. Se
+  mantienen validación Laravel, NOT NULL, FK restrictiva y default; no se afirma
+  garantía física de fechas, dominios ni longitudes en SQLite.
+- Borrado de instancias denegado en deleting. SQL directo, borrado masivo y
+  operaciones sin eventos pueden eludir esta protección; no se añaden triggers,
+  permisos de BD ni Policies operativas. Los futuros puntos de escritura deberán
+  respetar esta frontera. FK a Planta protege al padre, no al Servicio.
+- Lectura histórica sin scope global de activos; desactivar infraestructura no
+  altera Servicios. Comprobación de activos e INSERT no son atómicos; concurrencia
+  pendiente para escritores futuros. No se modifican otros modelos salvo relación
+  inversa en Plant, ni migraciones previas.
+
+Impacto futuro confirmado: planned es independiente del Programa; pedido/contrato
+no otorga acceso. Responsable autorizado configura periodicidad al crear Servicio.
+Supervisores operarán solo sobre asignaciones vigentes, aunque se superpongan entre
+Plantas; acceso directo si tienen una, elección si tienen varias y control por ID
+(MV-025…028). Sin implementación de esos flujos aquí.
+Quincenas de 15 días naturales desde start_date se implementarán en MV-029/MV-030;
+último periodo parcial y cortes semanales/mensuales/cambios siguen pendientes.
+Recordatorios por correo se registran como requisito futuro dependiente de
+Periodos y Programa de trabajo, no como funcionalidad aprobada para ejecutar ahora.
+MV-018 conserva el pendiente corporativo de GCS y no bloquea MV-022.

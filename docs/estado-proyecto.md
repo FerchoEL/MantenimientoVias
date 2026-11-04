@@ -892,3 +892,220 @@ Los módulos disponibles para Dirección son Clientes, Plantas, Vías, Cambios d
 | MV-020 | Terminado: documentación y guion de demostración preparados. |
 
 La Etapa 1 no se declara terminada mientras MV-018 y la aplicación autorizada de la migración pendiente de MariaDB continúen abiertas. No se creó commit ni push. Commit propuesto al cierre del bloque: `docs: registrar validacion y demostracion de etapa 1`.
+
+
+## MV-021 — diseño documental de Servicio — 2026-11-04
+
+Solicitud autorizada: «KP GROUP — SEMANA 03 — MV-021 — Modelar Servicio de
+Mantenimiento». Alcance: análisis y actualización exclusiva de modelo-datos.md,
+decisiones-tecnicas.md y este archivo. Inicio: rama `main`, HEAD `b5f24d9`
+(`docs: registrar validacion y demostracion de etapa 1`), árbol limpio.
+
+**Estado:** entregable de análisis terminado y contrastado documentalmente;
+aprobación funcional del modelo pendiente. No se declara implementación ni
+aceptación del modelo. MV-022 y siguientes no se iniciaron.
+
+### Evidencia de inspección
+
+- Leídos AGENTS.md, PLANS.md, índice/reglas de dominio, arquitectura, modelo,
+  reglas de negocio, decisiones e historial de estado. Modelos Client, Plant y
+  User inspeccionados: relaciones tipadas, Fillable, casts(), HasRoles y acceso
+  al panel. Plant conserva su validación existente de Cliente inactivo; no se
+  extrapola como comportamiento ya implementado para Servicios.
+- Revisados inventario de archivos app/database/routes/tests, rutas web,
+  migración de Plant y pruebas relacionadas de Plant. No existen archivos de
+  implementación de MaintenanceService en esas rutas. No se ejecutó route:list
+  ni la suite; la revisión de rutas fue estática y no valida acceso HTTP.
+- PDFs originales extraídos con `pdftotext -layout` y leídos en los apartados
+  pertinentes: v1.1 §7 (p. 12), relaciones/acceso y estados; RN-001…003 y
+  RC-002/003/029/032…035; planificación de etapa 2 (5–18 noviembre).
+- XLSX original leído mediante ZIP/XML, filas MV-021…MV-032, contrastadas con
+  el índice CSV. MV-021 y MV-022 figuran el 05/11/2026; MV-023/024 el 06/11,
+  MV-025/026 el 09/11, MV-027/028 el 10/11, MV-029/030 el 11/11. Son fechas
+  planeadas; esta revisión del 04/11 no altera cronograma ni estados del Gantt.
+- `php -v`, `composer -V`, `composer --no-plugins --no-scripts show --direct`
+  y `show laravel/boost`; composer.json/lock e instalación coincidentes:
+  PHP 8.3.30, Composer 2.10.3, Laravel 13.38.0, Filament 5.10.3,
+  Spatie Permission 8.3.2 y Boost 2.10.3.
+- Configuración MCP revisada selectivamente: caché array en servidor y subprocesos.
+  Boost `application-info`, `database-schema` resumido y detalle de plants,
+  `database-query` y `search-docs` disponibles y usados con éxito. Versión por
+  SELECT: MariaDB 10.11.14. `plants.id` BIGINT UNSIGNED, con PK; su FK a clients
+  restringe borrado/actualización. Consulta a information_schema confirmó ausencia
+  de maintenance_services, maintenance_service_supervisors y maintenance_periods.
+  No se consultaron datos personales ni se modificó la BD.
+- Documentación Laravel 13 consultada para enums/casts, validación y migraciones;
+  enlaces y propuestas en decisiones-tecnicas.md. No se instalaron paquetes.
+
+### Resultado y validación
+
+- Tabla completa de nueve atributos, nulabilidad, tipos propuestos, diagrama,
+  reglas, índices/restricciones y evaluación de casos A–F documentados.
+- Fuente confirma nombres de FK futuros `maintenance_service_id` y secuencia
+  principal de estados. Se distinguen de abreviaturas anteriores y de reglas
+  adicionales todavía pendientes; se conserva el historial documental.
+- Pendientes explícitos: fechas, clasificación de altas con inactividad,
+  correcciones históricas, duplicidad/pedido, default, transiciones, `none`,
+  vigencia de asignaciones, alcance de borrado y timestamps/auditoría.
+- Validación documental: `git diff --check`, revisión de diff, enlaces locales
+  nuevos y alcance exclusivo a los tres documentos. Casos A–F revisados como
+  diseño, no ejecutados como pruebas funcionales.
+- Sin pruebas PHP, migraciones, seeders, compilación, cambios de roles/permisos,
+  modelos, Resources ni configuración. No aplica Pint porque no se modificó PHP.
+  FKs, enums, fechas y concurrencia deben probarse posteriormente en una BD
+  aislada y autorizada; esta revisión no acredita comportamiento funcional.
+
+MV-018 continúa **pendiente de autorización corporativa de Google Cloud Storage**
+y no bloquea este análisis. Se conservan los pendientes previos de Etapa 1;
+MV-021 no los revalida ni los resuelve.
+
+Siguiente actividad: **MV-022 — Crear migración y modelo de Servicios**, después
+de revisar/aprobar el modelo y resolver decisiones que afecten esquema/altas.
+Recomendación: implementación mínima de Servicio y relación con Plant; dejar
+Resource para MV-023, estados detallados para MV-024, asignaciones para MV-025/026
+y Periodos para MV-029/030. No iniciar ninguna en este bloque.
+
+Commit documental propuesto (no realizado):
+`docs: definir modelo de servicio de mantenimiento MV-021`.
+Sin commit ni push. Trabajo detenido al entregar MV-021 para revisión.
+
+
+## MV-021 / MV-029 / MV-030 — actualización funcional registrada — 2026-11-04
+
+Decisión aprobada el 4 de noviembre de 2026 por el usuario responsable del
+proyecto, mediante la solicitud «Actualización de decisión funcional
+MV-021 / MV-029 / MV-030». Estado: **registrada documentalmente; implementación
+pendiente en MV-029/MV-030**. La aprobación se limita a la periodicidad quincenal;
+no supone aceptación integral de MV-021 ni inicio de MV-022.
+
+La periodicidad `biweekly` corresponde a **15 días naturales consecutivos**,
+contados desde `maintenance_services.start_date`. El primer periodo inicia en
+esa fecha y termina 14 días después, con ambos extremos incluidos. Cada periodo
+posterior comienza al día siguiente del cierre del anterior. No se utilizan
+quincenas de calendario (1–15 y 16–fin de mes).
+
+Ejemplo aprobado para inicio del Servicio el 05/11/2026:
+
+| Periodo | Inicio | Fin (incluido) |
+|---|---|---|
+| 1 | 05/11/2026 | 19/11/2026 |
+| 2 | 20/11/2026 | 04/12/2026 |
+| 3 | 05/12/2026 | 19/12/2026 |
+
+La implementación corresponde a **MV-029/MV-030**, no a MV-021 ni MV-022.
+Permanecen pendientes de definición:
+
+- Tratamiento del último periodo parcial.
+- Fechas de corte de reportes semanales y mensuales.
+- Reglas para cambios posteriores de periodicidad.
+- Recordatorios automáticos de captura por correo.
+
+Se actualizaron exclusivamente `docs/modelo-datos.md`,
+`docs/decisiones-tecnicas.md` y este archivo mediante secciones posteriores,
+conservando el historial y los cambios de MV-021 ya presentes al inicio.
+`git status --short` inicial mostró esos tres documentos modificados.
+Verificación: revisión del diff y `git diff --check` sin errores.
+No se ejecutaron pruebas funcionales ni se desarrollaron generación de periodos,
+migraciones, modelos, formularios o notificaciones. No se alteró el Gantt ni la
+base de datos. Sin commits ni push. MV-018 conserva su pendiente corporativo de
+Google Cloud Storage y no bloquea esta actualización documental.
+
+## MV-022 — modelo de Servicios verificado en SQLite — 2026-11-04
+
+Autorización: solicitud «Semana 03 — MV-022». Rama main, HEAD b5f24d9;
+los tres documentos de MV-021 ya estaban modificados y se conservaron íntegros.
+Las fuentes, modelos Client/Plant/Track, factories y DatabaseTestCase se revisaron
+junto con los resultados de inspección MV-021 de esta sesión. Boost search-docs
+confirmó eventos Eloquent, enum casts y migraciones para Laravel 13.
+
+MV-021 queda aprobado con planned, altas bajo Cliente/Planta activos, nombres y
+pedidos repetibles, conservación sin borrado físico, fechas finales opcionales
+no anteriores al inicio y timestamps Laravel. Alcance ejecutado: solo MV-022.
+
+### Archivos
+
+Creados:
+
+- app/Models/MaintenanceService.php.
+- app/ReportFrequency.php y app/MaintenanceServiceStatus.php.
+- database/factories/MaintenanceServiceFactory.php.
+- database/migrations/2026_11_04_201927_create_maintenance_services_table.php.
+- tests/Feature/Models/MaintenanceServiceTest.php.
+
+Modificados: app/Models/Plant.php (solo relación maintenanceServices),
+docs/modelo-datos.md, docs/decisiones-tecnicas.md y este archivo.
+Sin cambios de permisos, roles, configuración, fuentes originales ni Gantt.
+
+### Verificación y límites
+
+- Inspección Boost de solo lectura: no existía maintenance_services en MariaDB;
+  tampoco había migración de Servicios en el repositorio. Se creó una nueva.
+  El historial de migraciones consultado contiene los índices incrementales de
+  Vías/Tramos en lotes 6 y 7. Esta lectura actualiza la evidencia histórica de su
+  registro, pero no ejecutó esas migraciones ni revalidó su comportamiento.
+- Migración aplicada exclusivamente por pruebas en SQLite :memory:.
+  DatabaseTestCase verificó configuración testing/sqlite/:memory:/FK y, antes de
+  migrar, PDO sqlite, archivo vacío en PRAGMA database_list y foreign_keys=1.
+- Pruebas enfocadas: **29 pruebas, 72 aserciones, todas aprobadas**.
+- Suite completa: **142 pruebas, 785 aserciones, todas aprobadas**. Sin errores
+  ni advertencias reportados por el runner. Incluye regresión de catálogos previos.
+- Cobertura: relaciones y aislamiento por Planta, FK nula/inexistente, borrado
+  restringido de Planta, campos obligatorios/longitudes, límites de fechas,
+  validación al editar fechas, enums/casts, defaults de BD/modelo, timestamps,
+  altas rechazadas bajo inactividad aun con relaciones previamente cargadas,
+  duplicados simultáneos, conservación histórica y rechazo de borrado de instancia.
+- Pint --dirty --format agent ejecutado; git diff --check sin errores.
+- Restricciones físicas en SQLite: PK, FK, NOT NULL y default planned; sin UNIQUE
+  adicional ni CHECK. MariaDB previsto con tipos y longitudes aprobados; no
+  ejecutado ni validado allí. Validaciones Laravel de nombres, pedido, fechas y
+  dominios no equivalen a garantías físicas para SQL directo.
+- CHECK no añadido por diferencias de DDL y falta de validación física MariaDB;
+  decisión detallada en decisiones-tecnicas.md. Eventos omitidos por operaciones
+  masivas/silenciosas o SQL no protegen validación/borrado. La comprobación de
+  infraestructura activa no garantiza atomicidad ante desactivación concurrente.
+- La factory admite overrides y campos opcionales nulos; no inventa periodos,
+  asignaciones, estados automáticos ni unicidad de nombre/pedido.
+
+Comando de suite ejecutado, tras comprobar que no existía el archivo de caché:
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv022-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+### Aplicación posterior, NO ejecutada en este bloque
+
+Antes de aplicar: autorización de escritura, conexión efectiva de destino
+confirmada sin exponer credenciales, revisión del SQL y validación en MariaDB
+exclusiva de pruebas. No ejecutar migraciones pendientes ajenas al alcance.
+Comandos propuestos para MariaDB de desarrollo, sujetos a esa autorización:
+
+```bash
+php artisan migrate:status --database=mariadb --no-interaction
+php artisan migrate --database=mariadb --path=database/migrations/2026_11_04_201927_create_maintenance_services_table.php --pretend --no-interaction
+php artisan migrate --database=mariadb --path=database/migrations/2026_11_04_201927_create_maintenance_services_table.php --no-interaction
+php artisan migrate:status --database=mariadb --no-interaction
+```
+
+Verificar allí tipos unsigned, longitudes bajo modo SQL efectivo, nulabilidad,
+default e integridad FK; SQLite no acredita esas propiedades MariaDB. down()
+elimina tabla y datos: no usar rollback sobre información real como operación
+inocua. No se ejecutaron migraciones, seeders ni escrituras sobre MariaDB.
+
+### Dependencias futuras
+
+planned es independiente del Programa; order_number no determina acceso.
+Periodicidad por Servicio configurada por responsable autorizado, no por Supervisor
+al capturar. MV-025…028 implementará asignaciones simultáneas y acceso por vigencia:
+abrir directamente una asignación de Servicio única o elegir entre varias, sin
+permitir acceso ajeno alterando ID/peticiones. Sin Policies operativas en MV-022.
+MV-029/MV-030 implementará los 15 días naturales inclusivos desde start_date para
+biweekly, no quincenas calendario; ejemplo aprobado conservado. Último periodo
+parcial, cortes semanales/mensuales y cambios de frecuencia siguen pendientes.
+none conserva la futura obligación de Periodo vigente. Recordatorios por correo
+son requisito futuro dependiente de Periodos y Programa; no implementados.
+MV-018 permanece pendiente de autorización corporativa de GCS y no bloquea MV-022.
+
+Estado: **MV-022 implementado y verificado en SQLite aislada; aplicación y
+validación MariaDB pendientes**. No se inició MV-023 ni ningún módulo posterior.
+Commit propuesto: `feat: implementar servicios de mantenimiento MV-022`.
+No se realizó commit ni push.
