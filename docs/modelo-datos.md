@@ -341,3 +341,42 @@ no quincenas calendario. `none` no elimina la obligación futura de Periodo vige
 Último periodo parcial, cortes semanales/mensuales y cambios de frecuencia siguen
 pendientes. Recordatorios por correo: requisito futuro dependiente de Periodos y
 Programa de trabajo, sin diseño ni implementación aquí.
+
+
+## MV-023 — administración Filament de Servicios — 2026-11-04
+
+Se implementa `MaintenanceServiceResource` en Servicios → Servicios de
+mantenimiento, con listado, creación y edición, reutilizando el modelo MV-022.
+No se altera el esquema ni la migración. Los enums incorporan HasLabel con las
+etiquetas españolas aprobadas; sus valores persistidos permanecen iguales.
+
+Alta: Cliente activo requerido como dato auxiliar no persistido; su cambio limpia
+Planta. Planta requerida, activa y perteneciente al Cliente seleccionado, validada
+en servidor mediante reglas exists y opciones de relación filtradas. Se conserva
+el control Eloquent de infraestructura activa. Nombre obligatorio (150), pedido
+opcional (80), inicio requerido, fin opcional >= inicio, frecuencia requerida del
+enum y notas opcionales. Sin unicidad de nombre/pedido. La página admite solo esos
+atributos y fija status=planned, ignorando cualquier estado inyectado.
+
+Edición: Cliente/Planta y estado se muestran con TextEntry; no son entradas
+editables. La lista explícita de atributos permitidos al guardar contiene solo
+nombre, pedido, fechas, periodicidad y notas. Campos plant_id/status inyectados
+se descartan y no modifican el registro. Se permiten correcciones bajo Cliente o
+Planta inactivos, conservando propietario e histórico. Esta protección corresponde
+al Resource; no agrega una prohibición global de reasignación al modelo Eloquent.
+
+Listado: Cliente, Planta, nombre, pedido, fechas, frecuencia y estado; búsqueda por
+nombre/pedido; filtros por Cliente, Planta, frecuencia y estado; fecha inicial
+ordenable, descendente por defecto. Consulta con carga anticipada plant.client.
+No hay acciones de eliminación, restauración, duplicación ni cambio de estado.
+
+Control administrativo mediante MaintenanceServicePolicy: roles Administrador o
+Jefe de supervisores y permisos existentes service.view/service.manage, con nombres
+completos documentados en decisiones técnicas. Supervisor sin acceso al catálogo.
+No se implementa todavía consulta por asignación vigente.
+
+Cambiar fechas/frecuencia no genera ni altera Periodos o relaciones. Cuando existan
+Periodos operativos se necesitan reglas adicionales para esas modificaciones.
+Quincenas de 15 días desde start_date se implementarán en MV-029/MV-030; none no
+elimina la futura obligación de Periodo vigente. MV-024 y siguientes siguen fuera
+de este bloque; MV-018 continúa pendiente de autorización corporativa de GCS.

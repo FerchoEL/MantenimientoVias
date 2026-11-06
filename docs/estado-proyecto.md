@@ -1109,3 +1109,99 @@ Estado: **MV-022 implementado y verificado en SQLite aislada; aplicación y
 validación MariaDB pendientes**. No se inició MV-023 ni ningún módulo posterior.
 Commit propuesto: `feat: implementar servicios de mantenimiento MV-022`.
 No se realizó commit ni push.
+
+## MV-023 — módulo administrativo de Servicios — 2026-11-04
+
+Autorización: solicitud «Semana 03 — MV-023». Inicio: rama main, HEAD c00a582
+(`feat: implementar servicios de mantenimiento MV-022`), árbol limpio. Se conserva
+el historial documental; no se modificaron migraciones ni modelos de MV-022.
+
+### Inspección y alcance implementado
+
+- Revisadas instrucciones y reglas del proyecto, documentación previa y modelos,
+  enums/factory, Resources existentes, Policies y RolePermissionSeeder.
+  Se consultó Boost search-docs para Filament 5: selectores dependientes, validación,
+  enums/HasLabel y autorización de Resources. Versiones de esta sesión:
+  Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2 y PHP 8.3.30.
+- Boost, únicamente por lectura, confirmó tabla maintenance_services y migración
+  2026_11_04_201927_create_maintenance_services_table registrada en batch 8.
+  Actualiza el estado histórico de aplicación pendiente; no se ejecutó ni se
+  revalidó físicamente la migración en esta etapa.
+- Los permisos existentes service.view/manage se comprobaron en MariaDB: ambos
+  para Administrador/Jefe y view para Supervisor. Se reutilizan con condición
+  administrativa temporal por rol en Policy. No se modificó el seeder ni los datos.
+- Resource modular con tres páginas en Servicios → Servicios de mantenimiento.
+  Alta con Cliente auxiliar activo y Planta dependiente; validación de pertenencia
+  y activos en servidor. Campos, fechas y periodicidad según MV-022; estado
+  forzado planned. Edición de los seis campos administrativos, Planta fija y
+  estado informativo. Se descartan campos protegidos manipulados; histórico
+  consultable/editable aunque Cliente o Planta estén inactivos.
+- Tabla con las ocho columnas solicitadas, búsquedas por nombre/pedido, cuatro
+  filtros y orden por fecha inicial. Carga anticipada plant.client evita N+1 en
+  esas columnas. Sin acciones de borrado ni transiciones.
+- Policy deniega catálogo administrativo al Supervisor incluso con service.view,
+  y comprueba roles/permisos en navegación, rutas y acciones. Sin autorización
+  operativa por asignaciones; integración definitiva pendiente de MV-027/MV-028.
+
+### Archivos
+
+Creados bajo `app/Filament/Resources/MaintenanceServices/`:
+
+- MaintenanceServiceResource.php.
+- Pages/ListMaintenanceServices.php, CreateMaintenanceService.php y EditMaintenanceService.php.
+- Schemas/MaintenanceServiceForm.php.
+- Tables/MaintenanceServicesTable.php.
+
+También creados: app/Policies/MaintenanceServicePolicy.php y
+tests/Feature/MaintenanceServiceResourceTest.php.
+Modificados: app/ReportFrequency.php, app/MaintenanceServiceStatus.php (HasLabel),
+docs/modelo-datos.md, docs/decisiones-tecnicas.md y este archivo.
+
+### Pruebas y resultados
+
+- Pruebas enfocadas finales: **22 pruebas, 193 aserciones, todas aprobadas**.
+- Suite completa: **164 pruebas, 978 aserciones, todas aprobadas**; sin errores
+  ni advertencias reportados por el runner.
+- Cobertura: ambos roles administrativos, Supervisor con permiso view denegado,
+  visitante redirigido, rutas directas, Livewire y revocación de rol antes de
+  guardar; campos requeridos/longitudes/fechas, opciones activas y dependientes,
+  pertenencia a Cliente, desactivación posterior a abrir formulario, duplicados,
+  valores del enum, pedido opcional/fecha de un día, edición histórica,
+  manipulación de Planta/estado, filtros/búsquedas y ausencia de borrados.
+- Primera corrida enfocada: tres expectativas de prueba fallaron; se corrigieron
+  para observar navegación realmente registrada (getNavigationItems construye
+  elementos antes de filtrar autorización), enum devuelto por pluck Eloquent y
+  comparación de fecha con whereDate en SQLite. No se relajó la autorización ni
+  la validación para corregir esas expectativas.
+- Pruebas ejecutadas exclusivamente mediante DatabaseTestCase en SQLite :memory:.
+  La barrera comprueba configuración efectiva y PDO/PRAGMA antes de migrar.
+  RolePermissionSeeder se ejecutó solo dentro de esa base aislada de pruebas.
+- Pint --dirty --format agent aplicado; sintaxis `php -l` correcta en los diez
+  archivos PHP afectados; git diff --check sin errores. Diff y alcance revisados.
+- `php artisan route:list --path=maintenance-services --no-interaction` confirmó
+  las tres rutas de listado/alta/edición.
+
+Suite ejecutada tras comprobar ausencia del archivo de caché indicado:
+
+```bash
+APP_ENV=testing APP_CONFIG_CACHE=/tmp/kpgroup-mv023-no-config-cache.php DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= DB_FOREIGN_KEYS=true CACHE_STORE=array SESSION_DRIVER=array vendor/bin/phpunit --do-not-cache-result
+```
+
+No se ejecutó validación visual manual en navegador ni pruebas funcionales contra
+MariaDB. La suite acredita renderizado HTTP/Livewire y comportamiento en SQLite,
+no revisión visual responsiva ni garantías de concurrencia MariaDB. Se mantienen
+los límites de eventos/SQL directo documentados en MV-022.
+
+### Estado y pendientes
+
+**MV-023 implementado y verificado en SQLite aislada; revisión visual manual
+pendiente.** MV-024 no iniciado. Sin transiciones, asignaciones, Periodos, Programa,
+recordatorios, actividades, inventario, fotos o reportes. Cambios de fechas y
+frecuencia requerirán reglas adicionales cuando existan Periodos operativos.
+Quincenas de 15 días naturales desde start_date permanecen para MV-029/MV-030;
+none conserva la futura obligación de Periodo vigente. MV-018 sigue pendiente de
+autorización corporativa para GCS.
+
+Sin escrituras, migraciones ni seeders en MariaDB; sin cambios a credenciales,
+configuración cloud, permisos, roles o cronograma. No hubo commit ni push.
+Commit propuesto: `feat: administrar servicios de mantenimiento MV-023`.

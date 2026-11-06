@@ -446,3 +446,56 @@ Quincenas de 15 días naturales desde start_date se implementarán en MV-029/MV-
 Recordatorios por correo se registran como requisito futuro dependiente de
 Periodos y Programa de trabajo, no como funcionalidad aprobada para ejecutar ahora.
 MV-018 conserva el pendiente corporativo de GCS y no bloquea MV-022.
+
+
+## MV-023 — interfaz y autorización administrativa — 2026-11-04
+
+Responsable: usuario responsable del proyecto. Referencia: solicitud adjunta
+«KP GROUP — SEMANA 03 — MV-023», apartados 2–10. Estado: decisiones aprobadas
+implementadas en el Resource, sin ampliar módulos ni modificar esquema.
+
+- Planta fija en edición durante MV-023. Cliente/Planta son informativos; el
+  servidor descarta plant_id, client_id y status del payload de edición y solo
+  admite los seis campos administrativos aprobados. Un intento de reasignar
+  mediante campos manipulados no cambia propietario; no se rechazan por ello
+  otras correcciones válidas. La reasignación permanece pendiente de decisión
+  independiente. No se añade esa restricción al modelo para otros escritores.
+- Estado informativo: creación fuerza planned y edición conserva el estado
+  persistido. No existe un campo editable status ni acciones de transición.
+- Cliente auxiliar no se deshidrata ni persiste. Se validan existencia/actividad
+  y pertenencia de Planta al Cliente en servidor. La validación Eloquent MV-022
+  permanece intacta. Infraestructura inactiva impide alta, pero no lectura ni
+  corrección administrativa de Servicios existentes.
+- Se reutilizan enums mediante HasLabel nativo de Filament, con todas las
+  etiquetas españolas aprobadas, sin nuevos valores de frecuencia/estado.
+
+### Permisos inspeccionados y restricción provisional
+
+Boost confirmó permisos web `maintenance.service.view` y
+`maintenance.service.manage`: Administrador y Jefe de supervisores tienen ambos;
+Supervisor tiene view, coincidiendo con RolePermissionSeeder. El permiso view
+por sí solo no distingue consulta operativa de acceso administrativo global.
+
+Se reutilizan los permisos existentes con una condición administrativa temporal
+explícita: viewAny/view requieren rol Administrador o Jefe (guard web) y
+maintenance.service.view; create/update requieren además maintenance.service.manage.
+La Policy aplica a navegación, rutas directas y operaciones Livewire; delete,
+deleteAny, restore/restoreAny y forceDelete/forceDeleteAny devuelven false.
+No se modificaron permisos, roles ni seeder. La condición adicional por rol aplica
+la alternativa expresamente autorizada por la solicitud para evitar conceder el
+catálogo global al Supervisor. No se usó ocultamiento de menú como único control.
+
+MV-027/MV-028 deberá integrar el alcance operativo definitivo por asignación
+vigente; esta Policy administrativa no lo implementa. Pedido/contrato no otorga
+acceso. Las pruebas cubren retirada de rol después de abrir formularios.
+
+### Límites y dependencias
+
+Edición de fechas/frecuencia permitida en este bloque sin alterar relacionados;
+definir efectos antes de operar con Periodos existentes. No se resuelven cierres
+parciales, cortes semanales/mensuales ni cambios de periodicidad sobre operación.
+planned es independiente del Programa; biweekly conserva la regla de 15 días
+naturales inclusivos desde start_date para MV-029/MV-030. none no elimina Periodos
+operativos. Sin transiciones MV-024, asignaciones MV-025/026, recordatorios,
+programas, actividades, inventario, fotografías ni reportes.
+MV-018 continúa pendiente de autorización corporativa de Google Cloud Storage.
