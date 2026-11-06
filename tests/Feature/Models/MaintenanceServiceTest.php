@@ -208,4 +208,69 @@ class MaintenanceServiceTest extends DatabaseTestCase
 
         $this->assertSame('planned', DB::table('maintenance_services')->where('id', $id)->value('status'));
     }
+
+    public function test_planned_service_transitions_to_active(): void
+    {
+        $service = MaintenanceService::factory()->create();
+
+        $this->assertTrue($service->transitionTo(MaintenanceServiceStatus::Active));
+        $this->assertSame(MaintenanceServiceStatus::Active, $service->fresh()->status);
+    }
+
+    /** @return array<string, array{MaintenanceServiceStatus, MaintenanceServiceStatus}> */
+    public static function validTransitions(): array
+    {
+        return [
+            'active to completed' => [MaintenanceServiceStatus::Active, MaintenanceServiceStatus::Completed],
+            'active to cancelled' => [MaintenanceServiceStatus::Active, MaintenanceServiceStatus::Cancelled],
+        ];
+    }
+
+    #[DataProvider('validTransitions')]
+    public function test_active_service_transitions_to_an_allowed_terminal_state(
+        MaintenanceServiceStatus $initial,
+        MaintenanceServiceStatus $target,
+    ): void {
+        $service = MaintenanceService::factory()->create(['status' => $initial]);
+
+        $this->assertTrue($service->transitionTo($target));
+        $this->assertSame($target, $service->fresh()->status);
+    }
+
+    /** @return array<string, array{MaintenanceServiceStatus, MaintenanceServiceStatus}> */
+    public static function invalidTransitions(): array
+    {
+        return [
+            'planned to completed' => [MaintenanceServiceStatus::Planned, MaintenanceServiceStatus::Completed],
+            'planned to cancelled' => [MaintenanceServiceStatus::Planned, MaintenanceServiceStatus::Cancelled],
+            'completed to planned' => [MaintenanceServiceStatus::Completed, MaintenanceServiceStatus::Planned],
+            'completed to active' => [MaintenanceServiceStatus::Completed, MaintenanceServiceStatus::Active],
+            'completed to cancelled' => [MaintenanceServiceStatus::Completed, MaintenanceServiceStatus::Cancelled],
+            'cancelled to planned' => [MaintenanceServiceStatus::Cancelled, MaintenanceServiceStatus::Planned],
+            'cancelled to active' => [MaintenanceServiceStatus::Cancelled, MaintenanceServiceStatus::Active],
+            'cancelled to completed' => [MaintenanceServiceStatus::Cancelled, MaintenanceServiceStatus::Completed],
+        ];
+    }
+
+    #[DataProvider('invalidTransitions')]
+    public function test_invalid_transition_does_not_persist(
+        MaintenanceServiceStatus $initial,
+        MaintenanceServiceStatus $target,
+    ): void {
+        $service = MaintenanceService::factory()->create(['status' => $initial]);
+
+        $this->expectException(ValidationException::class);
+        $service->transitionTo($target);
+
+        $this->assertSame($initial, $service->fresh()->status);
+    }
+
+    public function test_same_state_transition_returns_false_without_touching_updated_at(): void
+    {
+        $service = MaintenanceService::factory()->create();
+        $updatedAt = $service->updated_at;
+
+        $this->assertFalse($service->transitionTo(MaintenanceServiceStatus::Planned));
+        $this->assertTrue($service->fresh()->updated_at->equalTo($updatedAt));
+    }
 }

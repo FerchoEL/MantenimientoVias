@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -58,6 +59,52 @@ class MaintenanceService extends Model
             throw ValidationException::withMessages([
                 'service' => 'No se pueden eliminar servicios de mantenimiento; se debe conservar su histórico.',
             ]);
+        });
+    }
+
+    public function canTransitionTo(MaintenanceServiceStatus $target): bool
+    {
+        return match ($this->status) {
+            MaintenanceServiceStatus::Planned => $target === MaintenanceServiceStatus::Active,
+            MaintenanceServiceStatus::Active => in_array($target, [
+                MaintenanceServiceStatus::Completed,
+                MaintenanceServiceStatus::Cancelled,
+            ], true),
+            MaintenanceServiceStatus::Completed,
+            MaintenanceServiceStatus::Cancelled => false,
+        };
+    }
+
+    /**
+     * Transition the service status using the latest persisted state.
+     *
+     * @throws ValidationException
+     */
+    public function transitionTo(MaintenanceServiceStatus $target): bool
+    {
+        return DB::transaction(function () use ($target): bool {
+            $locked = static::query()->lockForUpdate()->findOrFail($this->getKey());
+            $current = $locked->status;
+
+            if ($current === $target) {
+                $this->setRawAttributes($locked->getAttributes());
+                $this->syncOriginal();
+
+                return false;
+            }
+
+            if (! $locked->canTransitionTo($target)) {
+                throw ValidationException::withMessages([
+                    'status' => "No se permite cambiar el servicio de {$current->getLabel()} a {$target->getLabel()}.",
+                ]);
+            }
+
+            $locked->status = $target;
+            $locked->save();
+            $this->setRawAttributes($locked->getAttributes());
+            $this->syncOriginal();
+
+            return true;
         });
     }
 

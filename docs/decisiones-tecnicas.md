@@ -361,6 +361,43 @@ siempre antes de implementar el comportamiento afectado. No se altera el Gantt.
 MV-018 continúa pendiente de autorización corporativa de Google Cloud Storage;
 no bloquea el análisis de Servicios ni autoriza proveedor alterno.
 
+## MV-024 — validación de transiciones de estado — 2026-11-06
+
+Responsable: usuario responsable del proyecto. Referencia: solicitud adjunta
+«KP GROUP — SEMANA 03 — MV-024 — Validar transición de estados de Servicio».
+Estado: implementado y verificado en SQLite aislada; sin migraciones ni cambios
+en MariaDB.
+
+La matriz aprobada y ejecutada es:
+
+- `planned → active`.
+- `active → completed`.
+- `active → cancelled`.
+- Todo destino desde `completed` o `cancelled` queda rechazado.
+- `planned → completed` y `planned → cancelled` quedan rechazados; la segunda
+  permanece pendiente de decisión funcional y no se habilita.
+- El mismo estado no produce escritura ni evento de cambio.
+
+La lógica se centraliza en `MaintenanceService::canTransitionTo()` y
+`MaintenanceService::transitionTo()`. Esta última utiliza una transacción y
+bloqueo pesimista de la fila para reevaluar el estado persistido, evitando que
+una instancia obsoleta o una solicitud repetida aplique una transición incorrecta.
+No se añadió arquitectura de eventos, colas o tablas nuevas. El modelo conserva
+la validación existente de atributos y fechas al guardar.
+
+El Resource define tres acciones administrativas reutilizables en listado y
+edición: iniciar, finalizar y cancelar. Sus condiciones de visibilidad no son el
+control de seguridad: cada acción autoriza `update` nuevamente, y la operación de
+dominio vuelve a validar la matriz. Supervisor sigue excluido por la Policy
+administrativa de MV-023; no se agregan permisos ni se modifica el seeder.
+
+No hay activación/finalización automática por fechas, modificación automática de
+`end_date`, generación de Periodos, revocación de asignaciones, reapertura ni
+acciones desde `planned` para cancelar. La coordinación futura con asignaciones,
+acceso por vigencia, Periodos, captura, reportes y aprobaciones queda fuera de
+MV-024. SQL directo, operaciones masivas o eventos deshabilitados pueden eludir
+la lógica Eloquent; no se afirma protección universal.
+
 
 ## MV-021 / MV-029 / MV-030 — decisión aprobada de quincenas — 2026-11-04
 

@@ -1205,3 +1205,56 @@ autorización corporativa para GCS.
 Sin escrituras, migraciones ni seeders en MariaDB; sin cambios a credenciales,
 configuración cloud, permisos, roles o cronograma. No hubo commit ni push.
 Commit propuesto: `feat: administrar servicios de mantenimiento MV-023`.
+
+## MV-024 — transiciones de Servicio verificadas — 2026-11-06
+
+Solicitud autorizada: «KP GROUP — SEMANA 03 — MV-024 — Validar transición de
+estados de Servicio». Se conservaron los cambios pendientes de MV-022/MV-023.
+Boost y documentación Laravel 13/Filament 5 se consultaron por lectura; no se
+ejecutaron migraciones, seeders ni escrituras en MariaDB.
+
+### Cambios
+
+- `MaintenanceService::canTransitionTo()` y `transitionTo()` centralizan la
+  matriz. `transitionTo()` usa transacción y `lockForUpdate()`, reconsulta el
+  estado actual, rechaza destinos inválidos y devuelve `false` para el mismo
+  estado sin actualizar timestamps.
+- `MaintenanceServiceResource::statusActions()` crea las acciones reutilizadas
+  por listado y edición: Iniciar (`planned → active`), Finalizar (`active →
+  completed`) y Cancelar (`active → cancelled`). Exigen confirmación, Policy
+  `update`, validación de dominio y notificación en español.
+- No se habilita `planned → cancelled`, ninguna reapertura, transición automática,
+  modificación de fechas, generación de Periodos o coordinación con módulos aún
+  inexistentes. No se añadieron columnas, estados, permisos ni cambios al seeder.
+
+### Archivos modificados
+
+- `app/Models/MaintenanceService.php`.
+- `app/Filament/Resources/MaintenanceServices/MaintenanceServiceResource.php`.
+- `app/Filament/Resources/MaintenanceServices/Tables/MaintenanceServicesTable.php`.
+- `app/Filament/Resources/MaintenanceServices/Pages/EditMaintenanceService.php`.
+- `tests/Feature/Models/MaintenanceServiceTest.php`.
+- `tests/Feature/MaintenanceServiceResourceTest.php`.
+- Los tres documentos de datos, decisiones y estado.
+
+### Verificación
+
+- Pruebas enfocadas MV-022/MV-023/MV-024: **67 pruebas, 306 aserciones, todas
+  aprobadas**.
+- Suite completa en SQLite `:memory:` mediante `DatabaseTestCase`: **180 pruebas,
+  1,019 aserciones, todas aprobadas**.
+- Cobertura nueva: matriz válida e inválida, cancelación desde `planned`, rechazo
+  de reaperturas, mismo estado sin timestamp, estados obsoletos/repetidos,
+  conservación de Planta/fechas/pedido/frecuencia, registro conservado,
+  acciones visibles por estado, notificaciones, autorización Administrador/Jefe,
+  denegación Supervisor y regresiones del Resource.
+- `vendor/bin/pint --dirty --format agent` pasó; sintaxis PHP y
+  `git diff --check` se validaron. SQLite no acredita bloqueo concurrente real de
+  MariaDB ni protección de SQL directo.
+
+Estado: **MV-024 implementado y verificado en SQLite aislada**. No se inició
+MV-025. Pendientes: decisión sobre `planned → cancelled`, reaperturas, efectos
+sobre asignaciones/Periodos y revisión visual manual del panel.
+
+Commit propuesto: `feat: validar transiciones de estados de servicios MV-024`.
+Sin commit ni push.

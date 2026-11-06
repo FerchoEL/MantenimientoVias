@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MaintenanceServices\Tables;
 
+use App\Filament\Resources\MaintenanceServices\MaintenanceServiceResource;
 use App\MaintenanceServiceStatus;
 use App\Models\Client;
 use App\ReportFrequency;
@@ -32,7 +33,10 @@ class MaintenanceServicesTable
             SelectFilter::make('plant')->label('Planta')->relationship('plant', 'name')->searchable()->preload(),
             SelectFilter::make('report_frequency')->label('Periodicidad')->options(ReportFrequency::class),
             SelectFilter::make('status')->label('Estado')->options(MaintenanceServiceStatus::class),
-        ])->recordActions([EditAction::make()->label('Editar Servicio')])
+        ])->recordActions(array_merge(
+            [EditAction::make()->label('Editar Servicio')],
+            MaintenanceServiceResource::statusActions(),
+        ))
             ->defaultSort('start_date', 'desc');
     }
 }

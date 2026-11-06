@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MaintenanceServices\Pages;
 
 use App\Filament\Resources\MaintenanceServices\MaintenanceServiceResource;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Arr;
 
@@ -11,6 +12,12 @@ class EditMaintenanceService extends EditRecord
     protected static string $resource = MaintenanceServiceResource::class;
 
     protected static ?string $title = 'Editar Servicio';
+
+    /** @return array<int, Action> */
+    protected function getHeaderActions(): array
+    {
+        return MaintenanceServiceResource::statusActions();
+    }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {

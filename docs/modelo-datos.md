@@ -286,6 +286,40 @@ Esta actualización solo define el criterio funcional; no cambia atributos ni
 implementa generación de periodos, migraciones, modelos, formularios o
 notificaciones. Los demás pendientes del diseño permanecen abiertos.
 
+## MV-024 — transiciones de estado de MaintenanceService — 2026-11-06
+
+La transición administrativa se centraliza en `MaintenanceService::transitionTo()`;
+`canTransitionTo()` contiene la única matriz de dominio. La operación vuelve a
+leer la fila con `lockForUpdate()` dentro de una transacción antes de decidir y
+guardar, por lo que no depende del estado que pudiera tener una instancia o botón
+renderizado previamente. El mismo estado devuelve `false`, no guarda y no genera
+una actualización de timestamps.
+
+| Estado actual | Destinos permitidos | Destinos rechazados |
+|---|---|---|
+| `planned` | `active` | `planned`, `completed`, `cancelled` |
+| `active` | `completed`, `cancelled` | `planned`, `active` |
+| `completed` | ninguno | `planned`, `active`, `completed`, `cancelled` |
+| `cancelled` | ninguno | `planned`, `active`, `completed`, `cancelled` |
+
+Las acciones Filament `Iniciar Servicio`, `Finalizar Servicio` y `Cancelar Servicio`
+reutilizan esa operación. Solo aparecen para los estados aplicables, exigen
+confirmación, comprueban `update` en servidor y notifican en español. No hay
+selector libre de estado, cancelación desde `planned`, reapertura, automatismo por
+fechas ni generación de Periodos. La finalización no completa `end_date` cuando es
+NULL y no altera Planta, pedido, periodicidad, fechas, relaciones ni histórico.
+
+El rechazo de una transición lanza `ValidationException`; la acción lo convierte
+en notificación de error sin persistir cambios parciales. La fila bloqueada hace
+que solicitudes repetidas u obsoletas se evalúen contra el estado persistido.
+Operaciones SQL directas, actualizaciones masivas o escrituras sin eventos pueden
+eludir esta lógica de Eloquent y no tienen protección universal física.
+
+La cancelación `planned → cancelled`, las reaperturas y cualquier efecto sobre
+asignaciones, Periodos, captura, reportes o aprobaciones siguen pendientes. La
+coordinación futura corresponde a MV-025/026, MV-027/028, MV-029/030 y módulos
+posteriores; Servicio Finalizado no equivale a Reporte Aprobado.
+
 
 ## MV-022 — Servicio implementado — 2026-11-04
 

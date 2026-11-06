@@ -13,6 +13,7 @@ use App\Models\Plant;
 use App\Models\User;
 use App\ReportFrequency;
 use Database\Seeders\RolePermissionSeeder;
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Illuminate\Support\Facades\Gate;
@@ -257,5 +258,55 @@ class MaintenanceServiceResourceTest extends DatabaseTestCase
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get(MaintenanceServiceResource::getUrl())->assertRedirect(route('filament.admin.auth.login'));
+    }
+
+    public function test_admin_can_execute_valid_status_actions_with_notifications(): void
+    {
+        $this->login();
+        $service = MaintenanceService::factory()->create();
+
+        Livewire::test(ListMaintenanceServices::class)
+            ->callAction(TestAction::make('startService')->table($service))
+            ->assertNotified('Servicio En ejecución.');
+        $this->assertSame(MaintenanceServiceStatus::Active, $service->fresh()->status);
+
+        Livewire::test(EditMaintenanceService::class, ['record' => $service->id])
+            ->callAction('completeService')
+            ->assertNotified('Servicio Finalizado.');
+        $this->assertSame(MaintenanceServiceStatus::Completed, $service->fresh()->status);
+    }
+
+    public function test_cancel_action_is_available_only_for_active_service(): void
+    {
+        $this->login();
+        $planned = MaintenanceService::factory()->create();
+        $active = MaintenanceService::factory()->create(['status' => MaintenanceServiceStatus::Active]);
+
+        Livewire::test(ListMaintenanceServices::class)
+            ->assertTableActionVisible('startService', $planned)
+            ->assertTableActionHidden('cancelService', $planned)
+            ->assertTableActionVisible('cancelService', $active)
+            ->assertTableActionHidden('startService', $active);
+    }
+
+    public function test_supervisor_cannot_execute_status_action(): void
+    {
+        $user = $this->login('Supervisor');
+        $service = MaintenanceService::factory()->create();
+
+        $this->get(MaintenanceServiceResource::getUrl())->assertForbidden();
+        $this->assertFalse(Gate::forUser($user)->allows('update', $service));
+        $this->assertSame(MaintenanceServiceStatus::Planned, $service->fresh()->status);
+    }
+
+    public function test_stale_action_is_rejected_by_the_persisted_transition(): void
+    {
+        $this->login();
+        $service = MaintenanceService::factory()->create();
+        $stale = MaintenanceService::findOrFail($service->id);
+        $service->transitionTo(MaintenanceServiceStatus::Active);
+
+        $this->assertFalse($stale->transitionTo(MaintenanceServiceStatus::Active));
+        $this->assertSame(MaintenanceServiceStatus::Active, $service->fresh()->status);
     }
 }
