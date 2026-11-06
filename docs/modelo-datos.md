@@ -414,3 +414,74 @@ Periodos operativos se necesitan reglas adicionales para esas modificaciones.
 Quincenas de 15 días desde start_date se implementarán en MV-029/MV-030; none no
 elimina la futura obligación de Periodo vigente. MV-024 y siguientes siguen fuera
 de este bloque; MV-018 continúa pendiente de autorización corporativa de GCS.
+## MV-025 — diseño de asignaciones Supervisor–Servicio — 2026-11-06
+
+Diseño documental para revisión. No crea migración, modelo, Resource, Policy ni datos. Fuentes contrastadas: documentación funcional v1.1, RN-001, RC-002/003/029/032/034/035 y decisiones MV-022…MV-024.
+
+### Entidad propuesta
+
+`MaintenanceServiceSupervisor` representa un intervalo de asignación de un `User` con rol Supervisor a un `MaintenanceService`. No es una relación permanente con Plant; la Planta y el Cliente se obtienen por el Servicio.
+
+```mermaid
+erDiagram
+    User ||--o{ MaintenanceServiceSupervisor : recibe
+    MaintenanceService ||--o{ MaintenanceServiceSupervisor : asigna
+    Plant ||--o{ MaintenanceService : contiene
+    Client ||--o{ Plant : contiene
+```
+
+| Atributo | Tipo propuesto | NULL/default | Restricción |
+|---|---|---|---|
+| `id` | BIGINT UNSIGNED, PK autoincremental | No | Identidad histórica |
+| `maintenance_service_id` | BIGINT UNSIGNED, FK | No | `ON DELETE RESTRICT` |
+| `user_id` | BIGINT UNSIGNED, FK | No | `ON DELETE RESTRICT`; usuario con rol Supervisor al crear |
+| `start_date` | DATE | No | Inicio inclusivo |
+| `end_date` | DATE | Sí | Fin inclusivo; NULL sin fin definido |
+| `active` | BOOLEAN | No, `true` | Habilitación administrativa, sin borrar historia |
+| `created_at` / `updated_at` | TIMESTAMP | Sí | Timestamps convencionales Laravel |
+
+Las relaciones futuras serían `MaintenanceService::supervisorAssignments()` y `User::maintenanceServiceAssignments()`, ambas `HasMany`, y la asignación tendría `belongsTo` tipados a Servicio y User. Si se requiere navegación N:M, podrán añadirse `belongsToMany()->using(MaintenanceServiceSupervisor::class)` con campos de pivote. La elección entre modelo intermedio completo y pivote enriquecido queda para MV-026; PK propia, `active` y auditoría favorecen el modelo intermedio.
+
+### Vigencia, estados y restricciones
+
+- `start_date` es obligatorio; `end_date` es opcional y no puede ser anterior. Ambos extremos son inclusivos; un día es válido y no se exige fecha futura.
+- Una asignación vigente en `d` cumple `active = true`, `start_date <= d` y (`end_date IS NULL OR d <= end_date`). La fecha de consulta debe ser explícita en la futura Policy/Scope.
+- Se permiten asignaciones simultáneas en distintos Servicios, Plantas y Clientes. No habrá exclusividad por usuario, Planta, Cliente, día o intervalo.
+- Se permiten intervalos consecutivos del mismo Supervisor y Servicio; el intervalo anterior se conserva.
+- Propuesta pendiente: detectar en aplicación solapamientos del mismo par `(maintenance_service_id, user_id)` para evitar duplicidad accidental, pero permitirlos si tienen significado operativo justificado. MariaDB no expresa intervalos inclusivos mediante UNIQUE simple.
+- Índices propuestos: FK individuales y compuestos `(user_id, active, start_date, end_date)` y `(maintenance_service_id, active, start_date, end_date)`. No crear UNIQUE temporal sin aprobación.
+- `active = false` deshabilita administrativamente sin reescribir fechas. Finalizar con `end_date` y desactivar son operaciones distintas; su precedencia queda pendiente.
+
+### Servicio y asignación
+
+| Servicio | Asignación activa y vigente | Resultado operativo propuesto |
+|---|---|---|
+| `planned` | Sí | Preparación/consulta administrativa; no captura de ejecución |
+| `active` | Sí | Consulta y captura futura, con permisos y Periodo vigente |
+| `completed` o `cancelled` | Sí | Historia conservada; no nueva captura |
+| cualquier estado | No vigente o `active=false` | Sin autorización operativa |
+
+La habilitación futura requiere Servicio `active`, asignación activa y vigente, usuario autenticado con rol Supervisor y, cuando aplique, Periodo vigente. No se modifica MV-024 ni se cierran asignaciones automáticamente al completar/cancelar.
+
+### Seguridad e interfaz futura
+
+Administrador y Jefe podrán gestionar asignaciones e historial; solo se seleccionarán usuarios con rol Supervisor. El Supervisor no se asigna a sí mismo ni modifica sus vigencias. `user_id` y `maintenance_service_id` se validarán en servidor y con Policy; ocultar un selector no protege Livewire ni URL.
+
+Para operación, una sola asignación vigente permite acceso directo; varias permiten elegir entre Servicios; ninguna impide captura. Toda consulta por ID debe aplicar el mismo alcance. `order_number` no participa.
+
+### Casos A–J
+
+| Caso | Resultado esperado | Regla o pendiente |
+|---|---|---|
+| A — un Supervisor, un Servicio | Acceso durante fechas inclusivas si Servicio activo y Periodo vigente | RN-001/RC-003; MV-027/028 |
+| B — un Supervisor, varios Servicios | Servicios de Plantas distintas pueden coexistir | No exclusividad aprobada |
+| C — varios Supervisores, un Servicio | Cada asignación se evalúa independientemente | Sin límite aprobado |
+| D — cambio por lluvia | Se conserva la asignación original y se registra/use otra | No borrar ni desactivar automáticamente |
+| E — consecutivas | Intervalos separados del mismo par son válidos | Solapamiento accidental pendiente |
+| F — superpuestas | Servicios distintos pueden solaparse para el mismo Supervisor | RN-001 |
+| G — finalización/cancelación | Se conserva asignación; no autoriza nueva captura | Sin cierre automático |
+| H — sin asignaciones | Autenticado, pero sin Servicio operativo | UX pendiente MV-027 |
+| I — URL directa ajena | Denegación por Policy/Scope antes de devolver registro | RC-003/035 |
+| J — corrección histórica | Corregir fechas conservando identidad y trazabilidad | Auditoría y límites pendientes |
+
+No se implementan estos escenarios en MV-025. Creación, edición, desactivación, autorización y pruebas corresponden a MV-026…MV-028.

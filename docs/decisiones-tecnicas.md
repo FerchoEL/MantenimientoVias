@@ -536,3 +536,36 @@ naturales inclusivos desde start_date para MV-029/MV-030. none no elimina Period
 operativos. Sin transiciones MV-024, asignaciones MV-025/026, recordatorios,
 programas, actividades, inventario, fotografías ni reportes.
 MV-018 continúa pendiente de autorización corporativa de Google Cloud Storage.
+## MV-025 — diseño de asignaciones Supervisor–Servicio — 2026-11-06
+
+Responsable del análisis: Codex. Responsable de aprobación funcional: usuario responsable del proyecto. Referencia: solicitud «KP GROUP — SEMANA 03 — MV-025». Estado: diseño documental; no se autoriza todavía MV-026 ni se crean tablas, modelos o permisos.
+
+### Reglas confirmadas
+
+- RN-001 permite varias asignaciones vigentes de un Supervisor a Servicios distintos, incluso en Plantas o Clientes distintos, con fechas superpuestas. No existe exclusividad global.
+- RC-002 define asignaciones con inicio, fin opcional y `active`; no vincula permanentemente al Supervisor con la Planta.
+- RC-003/RC-035 exige acceso por asignación vigente, autenticación, roles/permisos y protección ante URL o identificador directo. Administrador y Jefe consultan transversalmente; Supervisor opera solo sobre asignaciones vigentes.
+- RC-029 conserva los estados de Servicio de MV-024. Finalizar o cancelar no implica borrar historia ni cerrar asignaciones automáticamente.
+- RC-032 exige trazabilidad donde sea relevante y RC-034 protege registros históricos relacionados.
+
+### Propuestas técnicas
+
+- Tabla `maintenance_service_supervisors` con `id`, `maintenance_service_id`, `user_id`, `start_date`, `end_date`, `active`, timestamps; FKs obligatorias a `maintenance_services` y `users`, ambas `ON DELETE RESTRICT`. No `supervisor_id` en Servicios, FK a Plant desde la asignación ni cascada histórica.
+- Modelo intermedio Eloquent completo favorecido por PK propia, `active`, fechas y auditoría; relaciones `belongsTo` a Servicio/User y `hasMany` inversas. Una navegación N:M con `using()` podrá añadirse si facilita consultas.
+- Validación de `end_date >= start_date`, intervalos inclusivos y fecha de consulta explícita. Índices compuestos para usuario/estado/vigencia y servicio/estado/vigencia; no UNIQUE temporal simple.
+- Para el mismo par Servicio–Supervisor, detectar solapamientos en aplicación y exigir justificación o rechazar el intervalo según regla aún no aprobada. Sí se permiten solapamientos entre Servicios distintos e intervalos históricos consecutivos.
+- Validar en alta que `user_id` tenga rol Supervisor y que el Servicio exista. La continuidad del rol, desactivación de User y correcciones históricas deben definirse; retirar un rol no borra una asignación histórica.
+- Acceso futuro requiere User autenticado, rol Supervisor, asignación activa y vigente, Servicio `active` y Periodo vigente cuando aplique. Es propuesta para MV-027/028, no Policy implementada ahora.
+
+### Decisiones pendientes antes de MV-026
+
+1. Rechazar todo solapamiento del mismo par o admitir intervalos simultáneos con motivo/auditoría.
+2. Precedencia entre `active=false` y establecer `end_date`; conservación de fechas al desactivar.
+3. Contener asignaciones entre `MaintenanceService.start_date/end_date` o permitir asignaciones preparatorias/posteriores.
+4. Permitir altas para Servicios `planned`, `completed` o `cancelled` y límites de corrección histórica.
+5. Auditoría adicional de creador, modificador, motivo y cambios de fechas.
+6. Tratamiento de un User que pierde rol Supervisor, se desactiva o sale de la organización.
+7. Respuesta de interfaz para Supervisor autenticado sin asignaciones.
+8. Confirmar si captura requiere siempre Periodo vigente también con `report_frequency=none`; RN-003 sugiere que sí.
+
+La propuesta para MV-026 es implementar primero modelo intermedio, FKs restrictivas, fechas inclusivas, índices y validación de rol/estado; después altas, historial, desactivación y corrección con autorización servidor. No avanzar hasta resolver estas preguntas. MV-018 sigue pendiente de GCS y no bloquea este diseño.

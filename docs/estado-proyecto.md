@@ -1258,3 +1258,28 @@ sobre asignaciones/Periodos y revisión visual manual del panel.
 
 Commit propuesto: `feat: validar transiciones de estados de servicios MV-024`.
 Sin commit ni push.
+## MV-025 — diseño documental de asignaciones Supervisor–Servicio — 2026-11-06
+
+Solicitud: «KP GROUP — SEMANA 03 — MV-025 — Diseñar asignaciones Supervisor–Servicio». Alcance exclusivamente documental; no se implementaron migraciones, modelos, factories, Resources, Policies, permisos ni datos.
+
+### Inspección y resultado
+
+- Revisados AGENTS.md, PLANS.md, reglas de dominio, arquitectura, modelo de datos, reglas, decisiones e historial. MV-022, MV-023 y MV-024 existen como Servicio, Resource y transiciones; no hay asignaciones implementadas.
+- Inspeccionados `User`, `MaintenanceService`, `Plant`, Policy administrativa de Servicio, roles/permisos y rutas. El Supervisor conserva `maintenance.service.view`, pero la Policy administrativa restringe el catálogo a Administrador/Jefe; el acceso operativo por asignación sigue pendiente.
+- Fuentes PDF leídas con `pdftotext`: RN-001, RC-002, RC-003, RC-029, RC-032, RC-034 y RC-035, además de cardinalidad, tabla conceptual y acceso §9.1. La fuente confirma `maintenance_service_id`, `user_id`, inicio, fin opcional y `active`.
+- Boost MCP de solo lectura confirmó esquema de `maintenance_services` y `users`; `information_schema` confirmó que no existe `maintenance_service_supervisors`. No se escribieron datos.
+- Boost `search-docs` consultó relaciones Eloquent con modelo intermedio y transacciones/bloqueo pesimista de Laravel 13. Versiones: Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2.
+
+### Entregable
+
+Documentados entidad, diagrama, atributos, FKs restrictivas, timestamps, índices, vigencia inclusiva, `active`, relaciones futuras, seguridad y matriz Servicio/Asignación para estados `planned`, `active`, `completed` y `cancelled`. Se separaron reglas confirmadas de propuestas sobre solapamiento del mismo par, contención con vigencia del Servicio, auditoría, rol Supervisor vigente, creación en estados no activos y precedencia `active`/`end_date`.
+
+Casos A–J cubiertos: asignación única, varios Servicios/Plantas, varios Supervisores, cambio temporal, intervalos consecutivos, solapamiento, finalización/cancelación, usuario sin asignaciones, URL ajena y corrección histórica. Dependencias: MV-026 implementará asignaciones; MV-027/028 Policies, scopes y acceso; MV-029/030 Periodos.
+
+### Validación y estado
+
+Solo se modificaron `docs/modelo-datos.md`, `docs/decisiones-tecnicas.md` y este archivo. `git diff --check` pasó y no hay cambios funcionales fuera de esos documentos. No se ejecutaron pruebas PHP, migraciones, seeders ni escrituras MariaDB porque MV-025 es diseño.
+
+Estado: **MV-025 terminado como diseño documental; aprobación del modelo pendiente**. No iniciar MV-026 hasta resolver las decisiones funcionales enumeradas.
+
+Commit documental propuesto: `docs: diseñar asignaciones supervisor servicio MV-025`. Sin commit ni push. MV-018 continúa pendiente de GCS y no bloquea este análisis.
