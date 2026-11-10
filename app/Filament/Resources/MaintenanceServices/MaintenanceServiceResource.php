@@ -5,18 +5,21 @@ namespace App\Filament\Resources\MaintenanceServices;
 use App\Filament\Resources\MaintenanceServices\Pages\CreateMaintenanceService;
 use App\Filament\Resources\MaintenanceServices\Pages\EditMaintenanceService;
 use App\Filament\Resources\MaintenanceServices\Pages\ListMaintenanceServices;
+use App\Filament\Resources\MaintenanceServices\Pages\ViewMaintenanceService;
 use App\Filament\Resources\MaintenanceServices\Schemas\MaintenanceServiceForm;
 use App\Filament\Resources\MaintenanceServices\Tables\MaintenanceServicesTable;
 use App\MaintenanceServiceStatus;
 use App\Models\MaintenanceService;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 class MaintenanceServiceResource extends Resource
@@ -37,12 +40,33 @@ class MaintenanceServiceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with('plant.client');
+        return parent::getEloquentQuery()->visibleTo(auth()->user())->with('plant.client');
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema->components([
+            TextEntry::make('plant.client.name')->label('Cliente'),
+            TextEntry::make('plant.name')->label('Planta'),
+            TextEntry::make('name')->label('Nombre del Servicio'),
+            TextEntry::make('order_number')->label('Pedido o contrato')->placeholder('Sin pedido'),
+            TextEntry::make('start_date')->label('Fecha inicial')->date('d/m/Y'),
+            TextEntry::make('end_date')->label('Fecha final')->date('d/m/Y')->placeholder('Sin fecha final'),
+            TextEntry::make('report_frequency')->label('Periodicidad'),
+            TextEntry::make('status')->label('Estado')->badge(),
+            TextEntry::make('notes')->label('Notas')->columnSpanFull(),
+        ]);
     }
 
     public static function form(Schema $schema): Schema
     {
         return MaintenanceServiceForm::configure($schema);
+    }
+
+    /** Results already use the scoped query; the destination reauthorizes access. */
+    public static function getGlobalSearchResultUrl(Model $record): ?string
+    {
+        return static::getUrl('view', ['record' => $record]);
     }
 
     public static function table(Table $table): Table
@@ -108,6 +132,7 @@ class MaintenanceServiceResource extends Resource
         return [
             'index' => ListMaintenanceServices::route('/'),
             'create' => CreateMaintenanceService::route('/create'),
+            'view' => ViewMaintenanceService::route('/{record}'),
             'edit' => EditMaintenanceService::route('/{record}/edit'),
         ];
     }

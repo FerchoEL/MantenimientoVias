@@ -499,3 +499,12 @@ Para operación, una sola asignación vigente permite acceso directo; varias per
 | J — corrección histórica | Corregir fechas conservando identidad y trazabilidad | Auditoría y límites pendientes |
 
 No se implementan estos escenarios en MV-025. Creación, edición, desactivación, autorización y pruebas corresponden a MV-026…MV-028.
+
+## MV-027 — métodos de alcance, sin cambio de esquema — 2026-11-10
+
+- `MaintenanceServiceSupervisor::currentFor(User)`: scope local con usuario, habilitación y fechas inclusivas calculadas en la zona de la aplicación (UTC). Agrupa el OR del fin nulo; usa comparaciones de fecha para que el cast `date` de Eloquent funcione también con SQLite, donde puede persistirse con hora. No acepta una fecha externa.
+- `MaintenanceService::visibleTo(?User)`: scope local explícito con permiso/rol y precedencia administrativa; `whereHas` evita duplicados y exige todas las condiciones sobre la misma asignación. Invitado o usuario sin acceso obtiene consulta vacía.
+- `MaintenanceService::acceptsNewOperations()`: consulta el estado persistido `active` y Cliente activo. No consulta las fechas del Servicio ni altera asignaciones, Servicio o infraestructura.
+- `MaintenanceServicePolicy::operate(User, Service, string $permission)`: precondición de permiso específico, alcance y estado operativo. El permiso lo decide el código servidor; los futuros módulos deben agregar sus reglas particulares y Periodo vigente.
+
+Se conservan columnas, FKs, índices y relaciones de MV-026. Continúan admitidos múltiples Supervisores, Servicios simultáneos y asignaciones superpuestas del mismo par. La consulta de histórico tras vencimiento no tiene excepción autorizada. Esta sección sustituye las propuestas previas de MV-025 únicamente en materia de autorización de consulta/operación; no implementa administración de asignaciones.

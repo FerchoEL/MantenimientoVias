@@ -6,6 +6,7 @@ use App\MaintenanceServiceStatus;
 use App\ReportFrequency;
 use Database\Factories\MaintenanceServiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -79,6 +80,29 @@ class MaintenanceService extends Model
     public function supervisorAssignments(): HasMany
     {
         return $this->hasMany(MaintenanceServiceSupervisor::class);
+    }
+
+    #[Scope]
+    protected function visibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user?->can('viewAny', self::class)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole(['Administrador', 'Jefe de supervisores'], 'web')) {
+            return $query;
+        }
+
+        return $query->whereHas('supervisorAssignments', fn (Builder $assignments): Builder => $assignments->currentFor($user));
+    }
+
+    /** Service prerequisites only; each operation must also validate its own rules. */
+    public function acceptsNewOperations(): bool
+    {
+        return static::query()->whereKey($this->getKey())
+            ->where('status', MaintenanceServiceStatus::Active)
+            ->whereHas('plant.client', fn (Builder $client): Builder => $client->where('active', true))
+            ->exists();
     }
 
     /**

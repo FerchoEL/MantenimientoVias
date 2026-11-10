@@ -14,22 +14,31 @@ class MaintenanceServicePolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->isAdministrator($user) && $user->can('maintenance.service.view');
+        return $user->hasRole(['Administrador', 'Jefe de supervisores', 'Supervisor'], 'web')
+            && $user->can('maintenance.service.view');
     }
 
     public function view(User $user, MaintenanceService $service): bool
     {
-        return $this->viewAny($user);
+        return MaintenanceService::query()->visibleTo($user)->whereKey($service->getKey())->exists();
     }
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user) && $user->can('maintenance.service.manage');
+        return $this->isAdministrator($user) && $this->viewAny($user) && $user->can('maintenance.service.manage');
     }
 
     public function update(User $user, MaintenanceService $service): bool
     {
         return $this->create($user);
+    }
+
+    /** The action permission is chosen by server code, never by the browser. */
+    public function operate(User $user, MaintenanceService $service, string $permission): bool
+    {
+        return $this->view($user, $service)
+            && $user->can($permission)
+            && $service->acceptsNewOperations();
     }
 
     public function delete(User $user, MaintenanceService $service): bool

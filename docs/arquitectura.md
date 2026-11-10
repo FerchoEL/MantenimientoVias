@@ -20,3 +20,13 @@ Saldo por `plant_materials` y movimientos auditados. Transacciones y bloqueo sob
 
 ## Evidencia
 Validar tipo/tamaño según parámetros a decidir; corrección de orientación, máximo aproximado 1920 píxeles en el lado largo, WebP ~80%, miniatura. Persistir rutas/metadatos, no blob en MariaDB. La documentación no fija tamaño máximo exacto ni extensiones.
+
+## MV-027 — frontera de autorización implementada — 2026-11-10
+
+`MaintenanceServiceSupervisor::currentFor(User)` concentra la vigencia inclusiva de una misma fila. El scope explícito `MaintenanceService::visibleTo(?User)` verifica `viewAny`, conserva precedencia Administrador/Jefe y aplica `whereHas` para Supervisor. No hay scope global dependiente de autenticación; los consumidores deben optar por el scope o autorizar por Policy.
+
+`MaintenanceServicePolicy::view` comprueba existencia mediante ese mismo scope; `viewAny` permite un listado vacío al Supervisor con permiso. `create/update` conservan el requisito administrativo y ambos permisos anteriores. No hay Gate/before universal ni cambio de permisos Spatie. `operate(User, Service, permission)` combina consulta, permiso elegido por código servidor y `acceptsNewOperations()` sobre estado persistido/Cliente activo; es una precondición reutilizable, no sustituye las validaciones de cada operación o Periodo ni expone un endpoint.
+
+El Resource usa `visibleTo` para listado, resolución por ID y búsqueda global; carga `plant.client` anticipadamente. Los filtros Cliente/Planta del Supervisor solo ofrecen infraestructura con Servicios autorizados. Los enlaces de tabla y búsqueda llevan a una página `ViewRecord` con infolist de lectura, cuya Policy se reevalúa también al hidratar Livewire. Los enlaces se construyen desde resultados ya filtrados, evitando consultas de autorización por fila. Los identificadores Livewire están bloqueados por Filament; acciones administrativas mantienen autorización servidor y resolución filtrada. Un registro fuera del alcance responde 404, mientras que una acción administrativa sobre un registro accesible responde 403 o no llega a montarse.
+
+La consulta solo muestra nombres informativos de Cliente/Planta; no enlaza a su administración ni concede permisos Core. No existen RelationManagers de Servicios, endpoints de asignación ni selectores independientes de Servicio. No se creó selección en sesión. Los permisos existentes de los catálogos Core permanecen independientes.

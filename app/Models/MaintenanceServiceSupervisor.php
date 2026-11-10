@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\MaintenanceServiceSupervisorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -59,6 +60,17 @@ class MaintenanceServiceSupervisor extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(MaintenanceService::class, 'maintenance_service_id');
+    }
+
+    #[Scope]
+    protected function currentFor(Builder $query, User $user): Builder
+    {
+        $today = now(config('app.timezone'))->toDateString();
+
+        return $query->where('user_id', $user->getKey())
+            ->where('active', true)
+            ->whereDate('start_date', '<=', $today)
+            ->where(fn (Builder $dates): Builder => $dates->whereNull('end_date')->orWhereDate('end_date', '>=', $today));
     }
 
     public function supervisor(): BelongsTo

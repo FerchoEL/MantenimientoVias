@@ -38,3 +38,22 @@ Fuentes: `fuentes/Reglas_Negocio_Mantenimiento_Vias_KPGroup.pdf` (RN-001 a RN-02
 AC-01 acceso por asignación; AC-02 evidencia actividad completada; AC-03 ubicaciones; AC-04 no negativos; AC-05 permisos alta materiales; AC-06 recobro independiente; AC-07 fecha original hallazgo; AC-08 traslado inventario; AC-09 selección no borra histórico; AC-10 folio fijo; AC-11 PDF persistente; AC-12 no borrado físico catálogos relacionados.
 
 **No inventar pendientes:** P-01 subopciones, P-02 criticidad, P-03 límite fotos PDF, P-04 folio definitivo, P-05 planta piloto, P-06 inventario piloto. RC-007 indica tensión entre `either`/`none` del catálogo y RN-004: escalar antes de implementar.
+
+## MV-027 — autorización por Servicio vigente — 2026-11-10
+
+Aprobación: responsable del proyecto, solicitud «KP GROUP — MV-027 — Aplicar autorización por servicio vigente»; fuentes contrastadas: v1.1 §§2, 4/RN-001, 9.1, 13 y AC-01. Esta decisión sustituye la restricción administrativa provisional de MV-023.
+
+Una misma asignación debe cumplir `user_id = usuario autenticado`, `maintenance_service_id = Servicio`, `active = true`, `start_date <= hoy` y (`end_date IS NULL` o `end_date >= hoy`). Hoy se calcula en `config('app.timezone')`, actualmente **UTC**, sin parámetro del navegador. Ambos límites son inclusivos; se admite un día completo. No se combinan filas ni se concede acceso a otros Servicios por compartir Planta o Cliente.
+
+| Rol / condición | Listado y consulta | Administración | Nuevas operaciones |
+|---|---|---|---|
+| Administrador o Jefe, permiso `maintenance.service.view` | Todos los Servicios, cualquier estado | Crear/editar/transiciones requieren además `maintenance.service.manage` | Requieren permiso de acción, Servicio `active` y condiciones de la operación |
+| Supervisor, permiso de consulta y asignación vigente habilitada | Solo Servicios asignados, cualquier estado | Denegada, incluso con permiso manage | Requieren además permiso de acción, Servicio `active` y condiciones de la operación |
+| Supervisor sin asignación vigente habilitada | Listado vacío; registro ajeno denegado | Denegada | Denegadas |
+| Sin permiso de consulta o sin rol admitido; invitado | Denegada | Denegada | Denegadas |
+
+La precedencia administrativa se conserva cuando concurren varios roles del guard `web`. Ninguna asignación concede roles ni permisos. El borrado, restauración y borrado definitivo siguen denegados para todos.
+
+La consulta no depende del estado del Servicio: `planned`, `active`, `completed` y `cancelled` son consultables dentro del alcance. Solo `active` satisface el requisito de estado para nueva operación; un Cliente inactivo impide nuevas operaciones conforme a la regla de dominio existente. No se añade contención por fechas del Servicio ni bloqueo adicional de consulta por inactividad de infraestructura. Los Periodos y validaciones particulares deberán comprobarse en cada módulo futuro; este bloque no implementa capturas.
+
+Vencer, deshabilitar o perder el rol/permiso restringe el acceso en la siguiente petición sin borrar histórico ni cambiar estados. No existe excepción aprobada de consulta histórica para asignaciones vencidas: permanece pendiente de decisión funcional.

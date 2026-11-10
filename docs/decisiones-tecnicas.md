@@ -587,3 +587,20 @@ La validación basada en eventos Eloquent puede omitirse mediante SQL directo o 
 - No se ejecutaron migraciones, seeders ni escrituras contra MariaDB.
 
 Se mantienen pendientes: contención con fechas del Servicio, reglas para estados `planned/completed/cancelled`, solapamientos del mismo par con motivo o rechazo, auditoría adicional, pérdida posterior del rol y precedencia entre `active` y `end_date`. MV-027/MV-028 implementará autorización e interfaz; MV-029/MV-030 implementará Periodos.
+
+## MV-027 — autorización implementada por asignación vigente — 2026-11-10
+
+Responsable de aprobación: usuario responsable del proyecto. Implementación: Codex. Referencia: solicitud adjunta «KP GROUP — MV-027 — Servicios y programa — Aplicar autorización por servicio vigente», que corrige expresamente el alcance anterior de solo diseño; documentación funcional v1.1 §§2, 4/RN-001, 9.1, 13 y AC-01; decisiones MV-024…026. Impacto: modelos, Policy, Resource de Servicios, pruebas y documentación existente; sin cambio de esquema ni permisos.
+
+Decisiones confirmadas en esta solicitud:
+
+- Consulta del Supervisor = rol `Supervisor` web + `maintenance.service.view` + una misma fila habilitada e inclusivamente vigente para usuario/Servicio. Sin excepción histórica al vencer. Administrador/Jefe conservan consulta global y precedencia en usuarios multirrol, con permisos; no se usa `before()`.
+- La fecha proviene del reloj servidor en la zona configurada (UTC); no se modifica la zona ni se admite fecha de autorización del cliente. `active=false` niega alcance aunque las fechas coincidan. Perder rol o permiso también lo niega, preservando la fila.
+- Consulta permitida en los cuatro estados dentro del alcance. Nuevas operaciones requieren `active`, permiso específico y condiciones propias; Cliente inactivo las bloquea conforme a la regla ya aprobada. No se introducen límites por fechas del Servicio. Ningún estado/asignación cambia automáticamente.
+- La administración de Servicios conserva MV-023/MV-024: crear/editar/transicionar solo Administrador/Jefe con view/manage; Supervisor denegado aunque tenga manage. Eliminaciones/restauraciones continúan denegadas.
+
+Decisiones técnicas: scopes locales `currentFor` y `visibleTo`, Policy compartiendo consulta, `EXISTS` para no duplicar, carga anticipada de Planta/Cliente, vista mínima `ViewRecord`, filtros relacionados limitados y URLs resueltas por el mismo Resource. Las rehidrataciones Filament 5.10.3 vuelven a resolver el registro y comprobar acceso. No se confía en estado de sesión, atributos cargados de asignaciones ni identidad enviada por navegador. La precondición `operate` no autoriza un módulo futuro por sí sola: el código servidor fija el permiso y debe comprobar Periodo y reglas particulares.
+
+Pendientes preservados: excepción histórica tras vencimiento, contención de asignaciones por fechas del Servicio, motivos/restricciones de solapamiento del mismo par, auditoría y corrección histórica, reglas de Periodos y condiciones particulares de capturas futuras. No bloquean esta implementación acotada. La gestión de asignaciones y MV-028 no se iniciaron.
+
+MariaDB: lectura mediante Boost del registro de migraciones confirmó `2026_11_06_203239_create_maintenance_service_supervisors_table`, lote **9**, y Servicios en lote **8**. Esto acredita su registro como aplicada; no es una validación de datos reales ni una prueba funcional MariaDB. No se ejecutaron migraciones, seeders ni escrituras en esa conexión. MV-027 no requiere migración ni actualización de permisos.

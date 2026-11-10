@@ -75,25 +75,26 @@ class MaintenanceServiceResourceTest extends DatabaseTestCase
         $this->assertSame('Corregido', $service->fresh()->name);
     }
 
-    public function test_supervisor_is_denied_even_with_service_view_permission(): void
+    public function test_supervisor_can_open_empty_list_but_not_unassigned_service(): void
     {
         $user = $this->login('Supervisor');
         $service = MaintenanceService::factory()->create();
         $this->assertTrue($user->can('maintenance.service.view'));
-        $this->assertFalse(MaintenanceServiceResource::canAccess());
-        $this->get(route('filament.admin.pages.dashboard'))->assertOk()->assertDontSee(MaintenanceServiceResource::getUrl(), false);
+        $this->assertTrue(MaintenanceServiceResource::canAccess());
+        $this->get(route('filament.admin.pages.dashboard'))->assertOk()->assertSee(MaintenanceServiceResource::getUrl(), false);
         foreach (['view', 'update', 'delete', 'restore', 'forceDelete'] as $ability) {
             $this->assertFalse(Gate::forUser($user)->allows($ability, $service));
         }
-        foreach (['viewAny', 'create', 'deleteAny'] as $ability) {
+        $this->assertTrue(Gate::forUser($user)->allows('viewAny', MaintenanceService::class));
+        foreach (['create', 'deleteAny'] as $ability) {
             $this->assertFalse(Gate::forUser($user)->allows($ability, MaintenanceService::class));
         }
-        foreach (['index', 'create', 'edit'] as $page) {
-            $this->get(MaintenanceServiceResource::getUrl($page, ['record' => $service->id]))->assertForbidden();
-        }
-        Livewire::test(ListMaintenanceServices::class)->assertForbidden();
+        $this->get(MaintenanceServiceResource::getUrl())->assertOk();
+        $this->get(MaintenanceServiceResource::getUrl('create'))->assertForbidden();
+        $this->get(MaintenanceServiceResource::getUrl('edit', ['record' => $service->id]))->assertNotFound();
+        Livewire::test(ListMaintenanceServices::class)->assertCanNotSeeTableRecords([$service]);
         Livewire::test(CreateMaintenanceService::class)->assertForbidden();
-        Livewire::test(EditMaintenanceService::class, ['record' => $service->id])->assertForbidden();
+        Livewire::test(EditMaintenanceService::class, ['record' => $service->id])->assertNotFound();
     }
 
     public function test_write_actions_reauthorize_after_role_revocation(): void
@@ -105,7 +106,7 @@ class MaintenanceServiceResourceTest extends DatabaseTestCase
         $user->syncRoles(['Supervisor']);
         $user->unsetRelation('roles');
         $create->call('create')->assertForbidden();
-        $edit->call('save')->assertForbidden();
+        $edit->call('save')->assertNotFound();
         $this->assertDatabaseCount('maintenance_services', 1);
         $this->assertNotSame('Intrusión', $service->fresh()->name);
     }
@@ -294,7 +295,7 @@ class MaintenanceServiceResourceTest extends DatabaseTestCase
         $user = $this->login('Supervisor');
         $service = MaintenanceService::factory()->create();
 
-        $this->get(MaintenanceServiceResource::getUrl())->assertForbidden();
+        $this->get(MaintenanceServiceResource::getUrl())->assertOk();
         $this->assertFalse(Gate::forUser($user)->allows('update', $service));
         $this->assertSame(MaintenanceServiceStatus::Planned, $service->fresh()->status);
     }

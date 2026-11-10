@@ -1305,3 +1305,53 @@ Se mantienen pendientes de MV-025: contención con las fechas del Servicio, regl
 Estado: **MV-026 implementado y verificado en SQLite aislada**. No iniciar MV-027 en este bloque.
 
 Commit propuesto: `feat: implementar asignaciones supervisor servicio MV-026`. Sin commit ni push.
+
+## MV-027 — autorización por Servicio vigente verificada — 2026-11-10
+
+Solicitud: «KP GROUP — MV-027 — Aplicar autorización por servicio vigente». Responsable funcional: usuario responsable del proyecto. Implementación: Codex. Estado: **Terminado verificado en SQLite aislada y pruebas HTTP/Livewire**. Se detiene el trabajo en MV-027, sin iniciar MV-028.
+
+### Inspección y resultado
+
+- Inicio en `main`, HEAD `bca3a523a0e682b3b7c4ec84a777238c11fabf15`, árbol limpio. Sin commits ni push de esta actividad.
+- PHP 8.3.30, Composer 2.10.3, Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2 y Boost 2.10.3 contrastados con manifiesto, lock y paquetes instalados. MCP disponible; configuración local conserva caché `array`, también para subprocesos.
+- Leídas las fuentes v1.1 sobre roles, RN-001, §9.1, estados y AC-01, además de decisiones MV-024…026. Consulta oficial Boost sobre scopes y seguridad/ciclo Livewire de Filament.
+- Supervisor con permiso accede al listado, incluso vacío, y únicamente consulta Servicios con asignación vigente habilitada. Admin/Jefe conservan acceso transversal conforme a permisos. La consulta admite cualquier estado; administración y precondiciones de nueva operación permanecen separadas.
+- Vigencia centralizada en `currentFor`; alcance compartido mediante `visibleTo` y `MaintenanceServicePolicy`. Fecha del servidor en **UTC**, confirmada también con `php artisan config:show app.timezone`; no cambia configuración. Los OR están agrupados y se usa existencia sobre una misma asignación, sin duplicados.
+- Vista de consulta protegida con infolist, filtros de Cliente/Planta y búsqueda global limitados. Carga anticipada de infraestructura; enlaces de resultados ya filtrados sin consulta por fila. Revocación/vencimiento vuelve a evaluarse en la petición siguiente; acceso directo ajeno 404, administración denegada al Supervisor. Sin cambios de permisos ni roles por asignación.
+
+### Archivos
+
+Creados:
+
+- `app/Filament/Resources/MaintenanceServices/Pages/ViewMaintenanceService.php`.
+- `tests/Feature/MaintenanceServiceAuthorizationTest.php`.
+
+Modificados:
+
+- `app/Models/MaintenanceServiceSupervisor.php` y `app/Models/MaintenanceService.php`.
+- `app/Policies/MaintenanceServicePolicy.php`.
+- `app/Filament/Resources/MaintenanceServices/MaintenanceServiceResource.php`.
+- `app/Filament/Resources/MaintenanceServices/Tables/MaintenanceServicesTable.php`.
+- `tests/Feature/MaintenanceServiceResourceTest.php`: ajusta expectativas provisionales de MV-023 al nuevo listado permitido y resolución filtrada 404; conserva cobertura administrativa.
+- `docs/reglas-negocio.md`, `docs/arquitectura.md`, `docs/modelo-datos.md`, `docs/decisiones-tecnicas.md` y este documento.
+
+### Verificación ejecutada
+
+- `vendor/bin/phpunit tests/Feature/MaintenanceServiceAuthorizationTest.php tests/Feature/MaintenanceServiceResourceTest.php`: **54 pruebas, 365 aserciones, aprobadas**.
+- `vendor/bin/phpunit`: **220 pruebas, 1.193 aserciones, aprobadas** (29,844 segundos reportados por PHPUnit).
+- Ambas ejecuciones usan `DatabaseTestCase`, que comprueba conexión efectiva SQLite `:memory:`, ausencia de URL y FKs antes de migrar exclusivamente esa BD aislada. Seeders/factories se ejecutaron solo en pruebas, nunca sobre MariaDB.
+- `vendor/bin/pint --dirty --format agent`: completado; corrigió orden de imports y estilo en dos archivos. Suite completa ejecutada después del formato.
+- `php -l` en los **8 archivos PHP** creados/modificados: sin errores.
+- `git diff --check`: sin errores. `php artisan route:list --path=maintenance-services --no-interaction`: cuatro rutas reales (listado, creación, consulta y edición).
+- Cobertura: fechas inclusivas, inicio futuro, fin vencido/nulo, desactivación, medianoche UTC; múltiples Servicios/Clientes/Supervisores sin duplicación; filas divididas; permisos/roles y precedencia administrativa; consulta individual y listado; búsqueda/filtros sin filtraciones; URLs y recordKey manipulados; propiedad Livewire record bloqueada; invocación manual de acción; revocación de rol/permiso/asignación y vencimiento con pantalla abierta; estado persistido, Cliente inactivo, preservación de histórico y ausencia de cambios automáticos. Se comprueba también que listado/búsqueda no consulten asignaciones por cada fila.
+- Iteraciones iniciales detectaron comparación de fechas SQLite con hora y parámetro de inyección del filtro Filament: corregidos. Se ajustaron pruebas al 404 real de rehidratación filtrada y a invocación manual de acciones sin el helper que exige visibilidad. **Resultado final: cero fallos/errores, sin advertencias ni pruebas omitidas reportadas por PHPUnit.**
+
+### MariaDB, límites y pendientes
+
+Lectura Boost: `SELECT migration, batch FROM migrations WHERE migration LIKE '%maintenance_service%' ORDER BY migration` devolvió Servicios en lote **8** y `2026_11_06_203239_create_maintenance_service_supervisors_table` en lote **9**. MV-026 figura aplicada; esta actividad no ejecutó migraciones, seeders, factories ni escrituras en MariaDB. MV-027 no agrega migraciones ni permisos por aplicar.
+
+No se ejecutaron pruebas funcionales contra MariaDB ni navegador real; las interfaces se ejercitaron mediante HTTP y Livewire sobre SQLite. No se evaluaron planes de ejecución o concurrencia propios de MariaDB. El alcance explícito no altera consultas administrativas de consola; consumidores futuros deberán llamar al scope/Policy. `operate` es una precondición reutilizable sin ruta de captura: los módulos futuros deberán fijar en servidor el permiso de acción y validar Periodo/reglas particulares. No se implementaron módulos ficticios para probarlos.
+
+Pendientes funcionales preservados: excepción de consulta histórica tras vencer, contención por fechas del Servicio, gestión/auditoría de asignaciones y reglas de futuras operaciones/Periodos. Mientras no se apruebe excepción, el histórico se conserva pero el Supervisor necesita asignación vigente para consultarlo. No hay selección de Servicio en sesión ni administración de asignaciones.
+
+Commit propuesto (no ejecutado): `feat: aplicar autorizacion por servicio vigente MV-027`.
