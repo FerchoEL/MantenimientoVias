@@ -414,6 +414,20 @@ Periodos operativos se necesitan reglas adicionales para esas modificaciones.
 Quincenas de 15 días desde start_date se implementarán en MV-029/MV-030; none no
 elimina la futura obligación de Periodo vigente. MV-024 y siguientes siguen fuera
 de este bloque; MV-018 continúa pendiente de autorización corporativa de GCS.
+
+## MV-026 — implementación de asignaciones Supervisor–Servicio — 2026-11-06
+
+La decisión funcional aprobada el 2026-11-06 implementa `maintenance_service_supervisors` como entidad histórica intermedia entre `users` y `maintenance_services`. La asignación conserva `maintenance_service_id`, `user_id`, `start_date`, `end_date` nullable, `active` con valor predeterminado `true` y timestamps. Ambas claves foráneas usan `ON DELETE RESTRICT`; no existe `plant_id`, `client_id`, cascada ni restricción UNIQUE.
+
+La vigencia usa fechas inclusivas: un intervalo de un día es válido, `end_date` puede ser NULL y solo se rechaza un fin anterior al inicio. Se permiten asignaciones simultáneas entre Servicios distintos y también registros históricos repetidos o superpuestos del mismo par, porque MV-025 no aprobó una regla de exclusión. `active=false` deshabilita la asignación sin borrar ni reescribir sus fechas.
+
+El modelo `MaintenanceServiceSupervisor` expone `service()` y `supervisor()` como `BelongsTo`; `MaintenanceService::supervisorAssignments()` y `User::maintenanceServiceAssignments()` son `HasMany`. Al crear, y al cambiar `user_id`, se valida que el usuario tenga el rol Spatie `Supervisor` en el guard `web`; el modelo no concede roles, no cambia el estado del Servicio y no añade autorización operativa. La eliminación Eloquent de una asignación se bloquea para conservar histórico; las FKs también protegen el histórico ante borrados directos.
+
+Los índices compuestos `(maintenance_service_id, active, start_date, end_date)` y `(user_id, active, start_date, end_date)` soportan consultas futuras por Servicio o Supervisor, estado y vigencia. No se añadieron índices simples redundantes ni se intentó expresar solapamiento temporal con UNIQUE.
+
+La validación vive en eventos Eloquent. Actualizaciones SQL directas, `update()` masivo de query builder y otros caminos que omitan eventos pueden saltársela; las interfaces futuras deberán validar en servidor. Las pruebas usan SQLite aislada con claves foráneas activas; esto verifica relaciones y reglas de dominio, pero no sustituye una comprobación MariaDB de índices, bloqueo concurrente o diferencias del motor.
+
+MV-027/MV-028 queda a cargo de Policy, scopes e interfaz de gestión y del acceso operativo por asignación vigente. Se mantienen pendientes de MV-025: contención con las fechas del Servicio, reglas para estados `planned/completed/cancelled`, solapamientos del mismo par con motivo o rechazo, auditoría adicional, pérdida posterior del rol y precedencia entre `active` y `end_date`. MV-029/MV-030 implementará Periodos; no se generan periodos en MV-026.
 ## MV-025 — diseño de asignaciones Supervisor–Servicio — 2026-11-06
 
 Diseño documental para revisión. No crea migración, modelo, Resource, Policy ni datos. Fuentes contrastadas: documentación funcional v1.1, RN-001, RC-002/003/029/032/034/035 y decisiones MV-022…MV-024.

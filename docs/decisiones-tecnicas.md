@@ -569,3 +569,21 @@ Responsable del análisis: Codex. Responsable de aprobación funcional: usuario 
 8. Confirmar si captura requiere siempre Periodo vigente también con `report_frequency=none`; RN-003 sugiere que sí.
 
 La propuesta para MV-026 es implementar primero modelo intermedio, FKs restrictivas, fechas inclusivas, índices y validación de rol/estado; después altas, historial, desactivación y corrección con autorización servidor. No avanzar hasta resolver estas preguntas. MV-018 sigue pendiente de GCS y no bloquea este diseño.
+
+## MV-026 — implementación de asignaciones Supervisor–Servicio — 2026-11-06
+
+Responsable de implementación: Codex. Aprobación funcional: usuario responsable del proyecto. Referencia: solicitud «KP GROUP — SEMANA 03 — MV-026 — Implementar asignaciones Supervisor–Servicio con vigencia».
+
+Se implementó `maintenance_service_supervisors` con FKs obligatorias y restrictivas, fechas inclusivas, `active=true` por defecto y timestamps. El modelo intermedio tiene fillable explícito, casts, relaciones tipadas y validación de existencia, fechas y rol `Supervisor` en guard `web`. No se concede el rol, no se imponen estados del Servicio, no se contiene la asignación a las fechas del Servicio y no se añadió UNIQUE temporal.
+
+Se permiten solapamientos entre Servicios distintos y registros repetidos o superpuestos del mismo par, conforme a la decisión pendiente de MV-025. `active=false` conserva las fechas y el registro. La eliminación Eloquent se bloquea para conservar histórico; las FKs protegen además borrados directos. No se implementaron roles, permisos, Policies, scopes, Resources, notificaciones, generación de periodos ni cambios de estado.
+
+La validación basada en eventos Eloquent puede omitirse mediante SQL directo o actualizaciones masivas. SQLite aislada verifica relaciones y reglas de dominio, pero no sustituye una comprobación MariaDB de índices, concurrencia o diferencias del motor.
+
+### Verificación
+
+- Prueba focalizada: **12 pruebas, 27 aserciones, todas aprobadas** en SQLite `:memory:` con FKs activas.
+- Se cubrieron relaciones, casts, factory, múltiples Servicios/Plantas, solapamientos permitidos, historial repetido, límites inclusivos, fin abierto, desactivación, FKs inexistentes, rol no Supervisor, fechas inválidas, restricciones de borrado y conservación del estado del Servicio.
+- No se ejecutaron migraciones, seeders ni escrituras contra MariaDB.
+
+Se mantienen pendientes: contención con fechas del Servicio, reglas para estados `planned/completed/cancelled`, solapamientos del mismo par con motivo o rechazo, auditoría adicional, pérdida posterior del rol y precedencia entre `active` y `end_date`. MV-027/MV-028 implementará autorización e interfaz; MV-029/MV-030 implementará Periodos.

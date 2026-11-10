@@ -1283,3 +1283,25 @@ Solo se modificaron `docs/modelo-datos.md`, `docs/decisiones-tecnicas.md` y este
 Estado: **MV-025 terminado como diseño documental; aprobación del modelo pendiente**. No iniciar MV-026 hasta resolver las decisiones funcionales enumeradas.
 
 Commit documental propuesto: `docs: diseñar asignaciones supervisor servicio MV-025`. Sin commit ni push. MV-018 continúa pendiente de GCS y no bloquea este análisis.
+
+## MV-026 — implementación de asignaciones Supervisor–Servicio — 2026-11-06
+
+Solicitud: «KP GROUP — SEMANA 03 — MV-026 — Implementar asignaciones Supervisor–Servicio con vigencia». Responsable de implementación: Codex. Aprobación funcional: usuario responsable del proyecto.
+
+### Resultado
+
+- Creada la migración de `maintenance_service_supervisors` con `maintenance_service_id`, `user_id`, `start_date`, `end_date`, `active`, timestamps, FKs `ON DELETE RESTRICT` e índices compuestos para Servicio/estado/vigencia y User/estado/vigencia.
+- Creado `MaintenanceServiceSupervisor` con fillable explícito, casts, relaciones `service()` y `supervisor()`, validación de existencia, fechas y rol Supervisor `web`, además de protección de histórico ante eliminación Eloquent.
+- Añadidas `MaintenanceService::supervisorAssignments()` y `User::maintenanceServiceAssignments()`.
+- Creado factory con `forSupervisor()` para usuarios Supervisor preparados.
+- No se modificaron roles, permisos, Policies, Resources, formularios, notificaciones, estados de Servicio ni datos MariaDB.
+
+### Validación y límites
+
+Prueba focalizada: **12 pruebas, 27 aserciones, todas aprobadas** mediante `Tests\DatabaseTestCase` en SQLite `:memory:` aislada. Se verificaron vigencias inclusivas, fin abierto y de un día, desactivación con preservación histórica, varios Servicios/Plantas, solapamientos permitidos, historial repetido, FKs, rol requerido, timestamps y ausencia de cambio de estado del Servicio. La validación basada en eventos Eloquent puede omitirse mediante SQL directo o actualizaciones masivas; MV-027/MV-028 deberá validar autorización y alcance en servidor. No se ejecutaron migraciones ni escrituras MariaDB.
+
+Se mantienen pendientes de MV-025: contención con las fechas del Servicio, reglas para estados `planned/completed/cancelled`, solapamientos del mismo par, auditoría adicional, pérdida posterior del rol y precedencia entre `active` y `end_date`. MV-029/MV-030 implementará Periodos; no se generan periodos en este bloque.
+
+Estado: **MV-026 implementado y verificado en SQLite aislada**. No iniciar MV-027 en este bloque.
+
+Commit propuesto: `feat: implementar asignaciones supervisor servicio MV-026`. Sin commit ni push.

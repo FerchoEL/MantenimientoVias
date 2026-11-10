@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -73,6 +74,11 @@ class MaintenanceService extends Model
             MaintenanceServiceStatus::Completed,
             MaintenanceServiceStatus::Cancelled => false,
         };
+    }
+
+    public function supervisorAssignments(): HasMany
+    {
+        return $this->hasMany(MaintenanceServiceSupervisor::class);
     }
 
     /**
