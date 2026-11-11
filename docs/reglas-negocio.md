@@ -57,3 +57,13 @@ La precedencia administrativa se conserva cuando concurren varios roles del guar
 La consulta no depende del estado del Servicio: `planned`, `active`, `completed` y `cancelled` son consultables dentro del alcance. Solo `active` satisface el requisito de estado para nueva operación; un Cliente inactivo impide nuevas operaciones conforme a la regla de dominio existente. No se añade contención por fechas del Servicio ni bloqueo adicional de consulta por inactividad de infraestructura. Los Periodos y validaciones particulares deberán comprobarse en cada módulo futuro; este bloque no implementa capturas.
 
 Vencer, deshabilitar o perder el rol/permiso restringe el acceso en la siguiente petición sin borrar histórico ni cambiar estados. No existe excepción aprobada de consulta histórica para asignaciones vencidas: permanece pendiente de decisión funcional.
+
+## MV-029 — Periodo operativo y validaciones estructurales — 2026-11-10
+
+Según v1.1 §§3.1/7/8/13, RN-003, RN-014 y RC-013/022/030, un Periodo pertenece al Servicio y representa su corte operativo, compartido por los Supervisores autorizados. Sus asignaciones no crean periodos ni les dan propiedad individual. El inventario final cerrado será la base del inicial siguiente conforme a RN-014; aquí se conserva la estructura, sin implementar ese arrastre.
+
+Se implementan inicio y fin obligatorios, Servicio y creador existentes, estado del conjunto documentado y fechas opcionales de envío/aprobación/cierre. `open` es un estado del proceso, no un intervalo sin fin. No se agregan numeración, folio, active ni observaciones. El borrado Eloquent se rechaza para preservar histórico; FKs restringen el borrado de Servicio y creador.
+
+Aclaración expresa del responsable para MV-029: **fin ≥ inicio**, admitiendo un día para no quincenales. La regla aprobada de quincenas de 15 días inclusivos desde el inicio del Servicio sigue vigente; su validación de duración/anclaje/continuidad se realizará en **MV-030, al abrir**. MV-029 no genera calendarios ni valida todavía esa política de apertura.
+
+No se deciden reglas generales de solapamiento, huecos, contención al Servicio, últimos cortes parciales, periodicidad none, cortes semanales/mensuales o correcciones históricas. La ausencia de una restricción en persistencia no aprueba la operación. Futuras lecturas y escrituras deben autorizar al Servicio padre conforme a MV-027, exigir permiso de acción y, para nueva operación, estado operativo y reglas particulares. Crear un Periodo o figurar como creador no concede acceso ni asignación.

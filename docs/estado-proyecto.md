@@ -1419,3 +1419,68 @@ Resultados finales: **cero fallos y errores; sin advertencias ni pruebas omitida
 Estado: **MV-028 terminado verificado en SQLite aislada con HTTP/Livewire**. No se inició MV-029. Sin commit ni push.
 
 Commit propuesto: `test: verificar escenarios simultaneos entre plantas MV-028`.
+
+## MV-029 — Periodos de Servicio modelados e implementados — 2026-11-10
+
+Solicitud: «KP GROUP — MV-029 — Modelar periodos de servicio». Responsable funcional: usuario responsable del proyecto. Implementación: Codex. Estado: **Terminado verificado en SQLite aislada; migración pendiente de aplicación en MariaDB**. No se inició MV-030.
+
+### Inspección y decisiones
+
+- Inicio en `main`, HEAD `37970eb72dea42c0bb79e0770f7fbb3b468c934f`, commit de MV-028 y árbol limpio. El estado documentado de MV-028, su archivo de pruebas y su commit estaban presentes; sus seis casos volvieron a ejecutarse en la suite completa. No se presume publicación remota.
+- Revisados instrucciones, planificación/índice Gantt, reglas, arquitectura, datos, decisiones y estado; modelos, relaciones, factories, transiciones MV-024, asignaciones MV-026 y autorización MV-027. Leídas las secciones pertinentes de v1.1 (corte, tabla maintenance_periods, relaciones, estados), reglas originales RN-003/014 y RC-013/022/030/032, y decisión quincenal del 04/11.
+- PHP 8.3.30, Composer 2.10.3, Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2 y Boost 2.10.3 verificados. MCP disponible y configuración con caché array. Boost inspeccionó el esquema MariaDB en lectura: había Servicios/asignaciones, no tabla de Periodos. Documentación oficial consultada para FKs y validaciones Laravel.
+- Antes de crear la migración se presentó la definición y la separación de Servicio/asignación/Periodo. El responsable confirmó expresamente: fin ≥ inicio con un día permitido para no quincenales; duración/anclaje/continuidad quincenal se validarán al abrir en MV-030. Registrado en decisiones-tecnicas; no cambia la regla de 15 días inclusivos.
+
+### Implementación y archivos
+
+Creados:
+
+- `database/migrations/2026_11_11_002315_create_maintenance_periods_table.php`.
+- `app/Models/MaintenancePeriod.php`.
+- `app/MaintenancePeriodStatus.php`.
+- `database/factories/MaintenancePeriodFactory.php`.
+- `tests/Feature/Models/MaintenancePeriodTest.php`.
+
+Modificados: `app/Models/MaintenanceService.php` (relación periods) y documentación existente `docs/modelo-datos.md`, `docs/reglas-negocio.md`, `docs/decisiones-tecnicas.md`, `docs/arquitectura.md`, `docs/estado-proyecto.md`.
+
+Se eligieron los nombres documentados `maintenance_periods`/`MaintenancePeriod` frente a los candidatos de la solicitud. Es un corte de un Servicio, sin pertenencia a un Supervisor. La tabla contiene ID, Servicio, inicio/fin obligatorios, estado requerido (cinco valores documentados), creador requerido, tres hitos temporales opcionales y timestamps convencionales. No se añadieron folio, número, observaciones, active o relaciones futuras. Estado Open en la factory no es un default de BD ni ejecuta apertura.
+
+FKs `mp_service_fk`/`mp_creator_fk` a Servicios/usuarios con borrado restrictivo. Validación Eloquent de requeridos, existencia, fechas, fin ≥ inicio y enum; casts date/datetime. `deleting` bloquea eliminación del Periodo. Modelo tiene `service()`/`creator()`; Servicio tiene `periods()`. No se genera/cierra/recalcula nada al cambiar Servicio o asignaciones. No hay rutas, interfaz, Policy nueva ni cambios en permisos; exposición futura debe autorizar Servicio padre y permiso de acción.
+
+### Pruebas y evidencia
+
+| Verificación ejecutada | Resultado |
+|---|---|
+| `vendor/bin/phpunit tests/Feature/Models/MaintenancePeriodTest.php` | **35 pruebas, 105 aserciones, aprobadas**, 1,873 s |
+| `vendor/bin/phpunit` | **261 pruebas, 1.402 aserciones, aprobadas**, 45,277 s; incluye MV-026/MV-027/MV-028 |
+| `vendor/bin/pint --dirty --format agent` | Correcto, sin correcciones necesarias |
+| `php -l` en los seis archivos PHP creados/modificados | Sin errores |
+| `git diff --check` | Sin errores |
+
+Cero fallos/errores; sin advertencias ni pruebas omitidas reportadas por PHPUnit. Suite completa después de Pint. `DatabaseTestCase` comprobó antes de migrar la configuración y conexión efectivas testing/sqlite/:memory:, sin DB_URL, PDO SQLite, archivo vacío y FKs activas; no se modificó este guard de aislamiento ni phpunit.xml. Factories, seeders y migraciones ejecutados únicamente en esa BD de pruebas.
+
+Cobertura específica: creación válida, relaciones, varios Periodos por Servicio; Periodos simultáneos en distintas Plantas del mismo Cliente y de otro Cliente; fechas/casts/timestamps; fin requerido, mismo día no quincenal, fin anterior rechazado también al corregir; estados documentados e hitos explícitos sin automatismos; Servicio/creador inexistentes; NOT NULL/FKs mediante SQL directo; rechazo físico de borrar Servicio/creador referenciado; bloqueo Eloquent del borrado de Periodo; ausencia de asignaciones automáticas o cambio del estado del Servicio; rotación/desactivación de Supervisor y finalización de Servicio sin modificar el Periodo. Crear un Periodo siendo su creador no concede acceso al Servicio sin asignación vigente.
+
+No se agregaron pruebas que conviertan en reglas los solapamientos, huecos, contención, cortes parciales o correcciones históricas pendientes. La validación quincenal aprobada se implementará y probará en MV-030 conforme a la aclaración actual, no mediante un generador o apertura incorporados a MV-029.
+
+### Garantías, límites y pendientes
+
+- FKs/NOT NULL/PK son físicos. Orden de fechas y dominio de estado se validan en Eloquent: sin CHECKs ni triggers; SQL directo, escrituras masivas o eventos omitidos pueden eludirlos. El callback deleting no impide borrar directamente la fila del Periodo. Las FKs restringen borrar padres, no hijos.
+- Un periodo Open tiene fecha final obligatoria; los tres hitos son nullable. El modelo almacena estados/hitos, no valida ni ejecuta aún el flujo de apertura/envío/aprobación/cierre RC-030.
+- Pendientes: solapamientos/duplicados, huecos/continuidad general, rango del Servicio, último parcial, cortes semanales/mensuales, none, cambios de periodicidad, correcciones/inmutabilidad y condiciones de apertura según Servicio/infraestructura. Ninguna ausencia de restricción se presenta como permiso funcional.
+- Sin pruebas contra MariaDB ni navegador real. SQLite no sustituye validación del motor sobre longitudes, índices o concurrencia. La factory está destinada a pruebas; no se ejecutó sobre datos reales. No se implementaron inventarios/arrastres, actividades, hallazgos, reportes, folios, notificaciones o integraciones.
+
+### Inspección propuesta para MariaDB — NO ejecutada
+
+Conexión predeterminada `mariadb` comprobada mediante `php artisan config:show database.default`; la consulta de esquema fue de lectura. No se ejecutó migrate, seeder, factory ni escritura alguna sobre MariaDB. La nueva tabla **queda pendiente de aplicación**.
+
+Comandos para revisar el registro y SQL de esta migración, sin aplicarla:
+
+```bash
+CACHE_STORE=array php artisan migrate:status --database=mariadb --path=database/migrations/2026_11_11_002315_create_maintenance_periods_table.php --no-interaction
+CACHE_STORE=array php artisan migrate --database=mariadb --path=database/migrations/2026_11_11_002315_create_maintenance_periods_table.php --pretend --no-interaction
+```
+
+Se verificaron las opciones con `migrate --help` y `migrate:status --help`; los dos comandos anteriores solo se proponen. El repositorio de migraciones MariaDB ya existe según inspecciones previas. No quitar `--pretend` como parte de esta actividad. El `down()` elimina la tabla y sus filas: está definido conforme al patrón de migraciones, pero un rollback sobre datos sería destructivo y no se ejecutó.
+
+Sin commit ni push. Commit propuesto: `feat: modelar periodos de servicio MV-029`.

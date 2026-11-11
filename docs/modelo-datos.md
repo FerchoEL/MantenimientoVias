@@ -508,3 +508,54 @@ No se implementan estos escenarios en MV-025. Creación, edición, desactivació
 - `MaintenanceServicePolicy::operate(User, Service, string $permission)`: precondición de permiso específico, alcance y estado operativo. El permiso lo decide el código servidor; los futuros módulos deben agregar sus reglas particulares y Periodo vigente.
 
 Se conservan columnas, FKs, índices y relaciones de MV-026. Continúan admitidos múltiples Supervisores, Servicios simultáneos y asignaciones superpuestas del mismo par. La consulta de histórico tras vencimiento no tiene excepción autorizada. Esta sección sustituye las propuestas previas de MV-025 únicamente en materia de autorización de consulta/operación; no implementa administración de asignaciones.
+
+## MV-029 — Periodos de Servicio implementados — 2026-11-10
+
+Fuentes contrastadas: documentación funcional v1.1 §3.1 (corte operativo), §7, página impresa 12 (`maintenance_periods`), §8.1 (relaciones), §13 (estados), RN-003/RN-014 y reglas originales RC-013/RC-022/RC-030/RC-032. Solicitud de implementación MV-029 y aclaración del responsable en esta conversación: fin ≥ inicio; un día admitido para no quincenales; duración/anclaje/continuidad quincenal se implementan al abrir en MV-030.
+
+El Periodo es el corte operativo de **un Servicio**, referencia futura para actividades, hallazgos, inventario congelado y un reporte por periodo. No representa la duración del Servicio ni una asignación de Supervisor. Un Servicio tiene varios Periodos y asignaciones independientes; cambiar de Supervisor no divide ni redefine cortes. RN-014 requiere conservar el corte cerrado para el futuro arrastre al siguiente del mismo Servicio/Planta, pero no se implementa inventario ni transferencia.
+
+### Estructura física
+
+Se conserva el nombre explícito de la fuente **`maintenance_periods`**, frente al candidato `maintenance_service_periods`. El modelo convencional correspondiente es `App\Models\MaintenancePeriod`.
+
+| Columna | Tipo y obligatoriedad | Fundamento |
+|---|---|---|
+| `id` | BIGINT UNSIGNED PK autoincremental | PK de fuente y convención técnica |
+| `maintenance_service_id` | BIGINT UNSIGNED NOT NULL, FK restrictiva | Servicio obligatorio, sin duplicar Planta/Cliente |
+| `start_date` | DATE NOT NULL | Inicio del corte |
+| `end_date` | DATE NOT NULL | Fin del corte; la fuente no lo declara nullable |
+| `status` | VARCHAR(20) NOT NULL, sin default | Valores documentados: open/submitted/changes_requested/approved/closed |
+| `created_by` | BIGINT UNSIGNED NOT NULL, FK users restrictiva | Creador explícito en fuente; no es asignación de Supervisor |
+| `submitted_at` | DATETIME NULL | Envío documentado |
+| `approved_at` | DATETIME NULL | Aprobación documentada |
+| `closed_at` | DATETIME NULL | Cierre documentado |
+| `created_at`, `updated_at` | TIMESTAMP NULL | Convención `timestamps()` expresamente incluida en MV-029 |
+
+Migración: `2026_11_11_002315_create_maintenance_periods_table.php`. Su timestamp corresponde a UTC del generador Artisan; la fecha de esta bitácora usa America/Monterrey. No se modifican migraciones previas. FKs nombradas `mp_service_fk` y `mp_creator_fk`, ambas `ON DELETE RESTRICT`; MariaDB proporciona índices de soporte. Sin UNIQUE temporal, número, secuencia, nombre, folio, observaciones, active, softDeletes ni columnas de actores adicionales. No se agregan índices redundantes/especulativos; SQLite no acredita el rendimiento de los índices MariaDB.
+
+### Modelo y fronteras
+
+- `MaintenancePeriod::service(): BelongsTo`, `MaintenanceService::periods(): HasMany` y `MaintenancePeriod::creator(): BelongsTo`. Sin relaciones a módulos inexistentes ni scopes globales.
+- Fillable explícito, fechas `date`, auditoría `datetime`, estado enum string `MaintenancePeriodStatus` (Open, Submitted, ChangesRequested, Approved, Closed). Sin valor inicial automático: el escritor debe proporcionar status; la factory usa Open como fixture.
+- `saving` valida Servicio/creador existentes, fechas obligatorias y válidas, `end_date >= start_date`, estado perteneciente al enum y auditoría opcional con fechas válidas. No toma automáticamente usuario/fecha de autenticación ni completa hitos según estado.
+- `deleting` rechaza la eliminación Eloquent de cualquier Periodo para conservar histórico, coherente con Servicios/asignaciones. Las FKs impiden borrar Servicio/creador referenciados. Borrados masivos, SQL directo y eventos omitidos pueden eludir el callback del Periodo; no hay trigger que prohíba borrar la fila hija.
+- NOT NULL y FKs son garantías físicas. Orden de fechas, existencia comprobada anticipadamente, dominio del estado y coherencia de atributos son validaciones Eloquent; no se agregaron CHECKs. Los casts de entradas inválidas pueden lanzar excepción antes del callback: los futuros formularios deben validar antes de asignar.
+- `MaintenancePeriodFactory` permite `for($service, 'service')`, `for($user, 'creator')` y atributos explícitos de fechas/estado/hitos. Base determinista: 05–11/11/2026, Open e hitos nulos; no calcula calendarios ni interpreta la frecuencia del Servicio.
+
+### Reglas de fechas y pendientes
+
+| Tema | Situación efectiva |
+|---|---|
+| Fin anterior / igual / posterior | Anterior rechazado; igualdad admitida como validación estructural, probada para no quincenal; posterior admitido |
+| Inclusión de extremos | Quincena: ambos incluidos por decisión del 04/11; no se calcula duración de otros cortes en MV-029 |
+| Periodo abierto | Estado Open admitido; `end_date = NULL` rechazado por esquema fuente |
+| Quincenas | Sigue aprobada la duración de 15 días desde inicio del Servicio; validación de duración/anclaje/continuidad expresamente diferida a apertura MV-030 por el responsable |
+| Solapamientos y duplicados del mismo Servicio | Sin validación/UNIQUE nuevos; definición funcional general pendiente, ausencia de restricción no equivale a aprobación |
+| Contigüidad y huecos | Quincenal aprobado: siguiente comienza al día posterior al anterior; aplicación MV-030. Reglas generales pendientes |
+| Rango del Servicio | Sin contención implementada; último parcial y fechas fuera del rango pendientes |
+| Numeración/unicidad | No hay número/folio de Periodo aprobado. El futuro folio pertenece al corte/reporte; no se implementa |
+| Correcciones | Se revalidan campos y orden básico; límites por estado, trazabilidad y efectos retroactivos pendientes |
+| Estado del Servicio | No hay bloqueo adicional en este modelo de persistencia; reglas de apertura/operación se aplicarán en su flujo autorizado. Esto no autoriza capturas en planned/completed/cancelled |
+
+No se crean, cierran, recalculan ni eliminan Periodos automáticamente al cambiar Servicio o asignaciones. Cambios posteriores de periodicidad, cortes semanales/mensuales, `none` y último parcial siguen pendientes. El modelo no ejecuta el flujo RC-030: almacenar estados/hitos no equivale a validar transiciones o implementar apertura/cierre.

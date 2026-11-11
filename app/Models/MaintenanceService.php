@@ -82,6 +82,11 @@ class MaintenanceService extends Model
         return $this->hasMany(MaintenanceServiceSupervisor::class);
     }
 
+    public function periods(): HasMany
+    {
+        return $this->hasMany(MaintenancePeriod::class);
+    }
+
     #[Scope]
     protected function visibleTo(Builder $query, ?User $user): Builder
     {

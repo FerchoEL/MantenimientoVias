@@ -30,3 +30,11 @@ Validar tipo/tamaño según parámetros a decidir; corrección de orientación, 
 El Resource usa `visibleTo` para listado, resolución por ID y búsqueda global; carga `plant.client` anticipadamente. Los filtros Cliente/Planta del Supervisor solo ofrecen infraestructura con Servicios autorizados. Los enlaces de tabla y búsqueda llevan a una página `ViewRecord` con infolist de lectura, cuya Policy se reevalúa también al hidratar Livewire. Los enlaces se construyen desde resultados ya filtrados, evitando consultas de autorización por fila. Los identificadores Livewire están bloqueados por Filament; acciones administrativas mantienen autorización servidor y resolución filtrada. Un registro fuera del alcance responde 404, mientras que una acción administrativa sobre un registro accesible responde 403 o no llega a montarse.
 
 La consulta solo muestra nombres informativos de Cliente/Planta; no enlaza a su administración ni concede permisos Core. No existen RelationManagers de Servicios, endpoints de asignación ni selectores independientes de Servicio. No se creó selección en sesión. Los permisos existentes de los catálogos Core permanecen independientes.
+
+## MV-029 — persistencia del corte operativo — 2026-11-10
+
+`MaintenanceService hasMany MaintenancePeriod`; cada Periodo pertenece a un Servicio y registra un creador (`User`), sin duplicar Planta/Cliente ni propietario Supervisor. Las asignaciones siguen siendo un eje independiente de autorización temporal. `MaintenancePeriodStatus` representa los cinco estados documentados; no ejecuta su flujo ni propaga estados a otras entidades.
+
+Esta capa incluye esquema, casts, validación estructural y conservación histórica; no expone rutas, Resources ni capturas. Antes de exponer Periodos, el flujo deberá comprobar permiso de acción y autorización sobre el Servicio padre usando MV-027. La creación de una fila o su creador no habilita acceso. La validación quincenal de 15 días y continuidad pertenece a la apertura MV-030, por aclaración expresa del responsable; no se generan cortes desde el modelo.
+
+Los futuros inventarios congelados, actividades, hallazgos y reporte del periodo referenciarán su identidad; no se crean relaciones a modelos aún inexistentes ni mecanismos de arrastre. Campos obligatorios, excepciones de fechas, garantías y pendientes se detallan en modelo-datos y decisiones-tecnicas.

@@ -604,3 +604,22 @@ Decisiones técnicas: scopes locales `currentFor` y `visibleTo`, Policy comparti
 Pendientes preservados: excepción histórica tras vencimiento, contención de asignaciones por fechas del Servicio, motivos/restricciones de solapamiento del mismo par, auditoría y corrección histórica, reglas de Periodos y condiciones particulares de capturas futuras. No bloquean esta implementación acotada. La gestión de asignaciones y MV-028 no se iniciaron.
 
 MariaDB: lectura mediante Boost del registro de migraciones confirmó `2026_11_06_203239_create_maintenance_service_supervisors_table`, lote **9**, y Servicios en lote **8**. Esto acredita su registro como aplicada; no es una validación de datos reales ni una prueba funcional MariaDB. No se ejecutaron migraciones, seeders ni escrituras en esa conexión. MV-027 no requiere migración ni actualización de permisos.
+
+## MV-029 — modelo de Periodos y aclaración de fechas — 2026-11-10
+
+Responsable funcional: usuario responsable del proyecto. Implementación: Codex. Referencias: solicitud «KP GROUP — MV-029 — Modelar periodos de servicio»; v1.1 §7, página 12, §§3.1/8/13; RN-003/014; RC-013/022/030/032; aclaración explícita «Confirmar ambas propuestas» en esta conversación.
+
+**Aclaración aprobada:** validar `end_date >= start_date`, permitiendo un día para no quincenales. La validación de duración/anclaje/continuidad quincenal se implementará en apertura MV-030, junto a las reglas que correspondan sobre correcciones y último parcial aún pendientes. No se modifica la decisión funcional del 04/11 de 15 días inclusivos; se precisa la separación entre persistencia MV-029 y apertura MV-030. No se implementa MV-030 aquí.
+
+**Decisiones técnicas derivadas de fuente y alcance:**
+
+- Elegir `maintenance_periods` / `MaintenancePeriod`, nombres documentados, en lugar del candidato `maintenance_service_periods`. `created_by` y los tres hitos temporales están expresamente en la fuente: no son campos añadidos por costumbre ni implican vínculo propietario al Supervisor.
+- `end_date` y `created_by` obligatorios conforme a la tabla conceptual; solo hitos figuran nullable. Estado VARCHAR(20), enum PHP de cinco valores; se exige explícitamente sin presumir un default en BD. La factory usa Open como fixture, sin automatizar el proceso.
+- Timestamps convencionales autorizados en la solicitud. FKs restrictivas a Servicio y User para impedir pérdida de periodos por borrado del padre; nombres `mp_service_fk`/`mp_creator_fk`. PK y soporte de FKs, sin UNIQUE ni índices especulativos.
+- Validación en saving y bloqueo de eliminación Eloquent en deleting siguiendo MV-022/MV-026. Sin trigger ni CHECK: SQL directo/operaciones masivas pueden omitir orden de fechas, pertenencia de estado o bloqueo de eliminación de Periodo. Se distinguen con pruebas las FKs/NOT NULL físicos de las validaciones del modelo.
+- Relaciones `service`, `creator` y `MaintenanceService::periods`; sin relaciones a actividades/inventarios/reportes todavía inexistentes. Creador no se infiere del usuario autenticado ni otorga autorización.
+- Sin Policy nueva porque no se expone el modelo por rutas/Filament ni hay exigencia de crearla en MV-029. Antes de cualquier exposición futura, autorizar al Servicio padre y permiso de acción; no usar `created_by` para saltar MV-027.
+
+**Pendientes que no bloquean este esquema:** solapamiento y duplicidad del mismo Servicio, continuidad/huecos no quincenales, rango del Servicio, último parcial, cortes semanales/mensuales, none, numeración si se requiriera, correcciones e inmutabilidad por estado, reglas de apertura según estado del Servicio/infraestructura y ejecución del flujo RC-030. El bloqueo aprobado de nuevas operaciones bajo Cliente inactivo permanece; su clasificación/validación en el flujo de apertura corresponde al trabajo futuro, no se presume autorización a partir de la existencia del modelo. No se agregan pruebas que aprueben esos comportamientos pendientes.
+
+**Conservación:** no borrar Periodos por cambios de Supervisor o estados del Servicio; no cerrar ni generar automáticamente. El esquema conserva la identidad de corte necesaria para RN-014/RC-013 y el futuro reporte único RC-022, sin implementar inventarios, reportes o folios.
