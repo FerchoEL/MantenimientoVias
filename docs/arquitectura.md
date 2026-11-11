@@ -47,4 +47,10 @@ Cada operación bloquea primero el Servicio; cierre bloquea luego el Periodo. Ap
 
 Invocar como transacción autónoma; si el llamador ya tiene una transacción MariaDB, deberá haber establecido `READ COMMITTED` como aislamiento de sesión antes de iniciarla, sin un override por transacción. Se rechazan otros aislamientos externos para evitar instantáneas antiguas en las lecturas de autorización/periodos. No se modifica el aislamiento de la aplicación. Las excepciones revierten la operación; futuros consumidores no deben ignorarlas ni reemplazar estos métodos por `create/update` directos.
 
+## MV-031 — catálogo global de categorías
+
+`MaintenanceActivityCategory` es un catálogo global independiente de Servicios y Periodos. Su Resource Filament vive en `Configuración`/`Servicios` según la navegación existente, permite alta y edición a los roles autorizados y no registra acciones de borrado. Supervisor puede listar solo registros activos; Administrador y Jefe consultan también inactivos para conservar y reactivar histórico.
+
+La Policy exige permisos específicos `maintenance.activity-category.*` y, para gestión, rol Administrador o Jefe. El modelo protege validación, normalización y eliminación histórica; la base agrega unicidad global de nombre. No se añade relación a programas ni actividades, ni se deriva una planificación compartida.
+
 Pruebas funcionales: `MaintenancePeriodLifecycleTest` sobre SQLite en memoria, con el guard original intacto. Concurrencia: `MaintenancePeriodConcurrencyTest` sobre instancia MariaDB desechable, conexiones en procesos PHP separados y comprobación de esperas reales InnoDB; `MariaDbTestCase` valida socket/directorio/base/servidor sin red antes de migrar. No ejecuta pruebas sobre la conexión operativa; sin opt-in explícito, esos casos se omiten con motivo visible.

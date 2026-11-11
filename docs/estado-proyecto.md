@@ -1517,3 +1517,13 @@ Reproducción: provisionar una instancia desechable con `mariadb-install-db --no
 La instancia temporal se apagó al terminar mediante su propio socket; el log confirmó `Shutdown complete`. Se conservan los artefactos de diagnóstico en `/tmp`, sin borrar datos ni directorios del proyecto.
 
 Propuesta de commit: `feat(periods): implement controlled opening and base closure (MV-030)`.
+
+## MV-031 — categorías de actividad — 2026-11-11
+
+**Estado: Terminado verificado en el alcance aprobado; pendiente de revisión/commit del responsable.** La decisión funcional recibida el 2026-11-11 limita la administración global a Administrador y Jefe de supervisores; Supervisor solo consulta categorías activas. Se agregaron permisos específicos `maintenance.activity-category.view/create/update`, sin modificar los permisos existentes de captura de actividades.
+
+Implementados `MaintenanceActivityCategory`, migración `maintenance_activity_categories`, factory, Policy y Resource Filament con alta, edición, activación/desactivación, filtros y orden. El modelo valida nombre obligatorio de 100 caracteres, recorta espacios exteriores, descripción opcional, orden entero no negativo, estado activo por defecto y rechazo de eliminación física. La base impone unicidad global del nombre. No hay relaciones con Servicios, Periodos, programas ni actividades ejecutadas: cada futuro Servicio podrá planificar sus actividades independientemente usando este catálogo.
+
+Prueba específica: `tests/Feature/MaintenanceActivityCategoryTest.php` cubre 9 pruebas y 48 aserciones, incluyendo roles, permisos directos, consultas activas, operaciones Filament, acceso directo a rutas, duplicados físicos y regresión de permisos. No se ejecutaron migraciones contra MariaDB operativa. Se conserva como pendiente la creación de tipos/subopciones, unidad, ubicación, comportamiento de inventario y planificación por Servicio.
+
+Archivos nuevos: modelo, migración, factory, Policy, Resource, esquemas, tablas, páginas y prueba. Modificados: `RolePermissionSeeder.php`, pruebas de autorización de catálogos y documentos de estado/reglas/arquitectura/modelo/decisiones. Suite completa: **320 pruebas aprobadas, 1.635 aserciones**, 8 omitidas por requerir el opt-in MariaDB aislado de MV-030; sin fallos ni errores. Pint, sintaxis PHP y `git diff --check` correctos. No se ejecutaron migraciones contra MariaDB operativa. Propuesta de commit: `feat(activities): implement activity categories catalog (MV-031)`.

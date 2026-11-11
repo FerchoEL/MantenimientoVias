@@ -33,10 +33,10 @@ class CatalogAuthorizationAndResourcesTest extends DatabaseTestCase
     {
         $this->seed(RolePermissionSeeder::class);
 
-        $this->assertSame(33, Permission::count());
-        $this->assertCount(33, Role::findByName('Administrador', 'web')->permissions);
-        $this->assertCount(33, Role::findByName('Jefe de supervisores', 'web')->permissions);
-        $this->assertCount(15, Role::findByName('Supervisor', 'web')->permissions);
+        $this->assertSame(36, Permission::count());
+        $this->assertCount(36, Role::findByName('Administrador', 'web')->permissions);
+        $this->assertCount(36, Role::findByName('Jefe de supervisores', 'web')->permissions);
+        $this->assertCount(16, Role::findByName('Supervisor', 'web')->permissions);
         $this->assertFalse(Role::findByName('Supervisor', 'web')->hasPermissionTo('maintenance.client.view'));
         $this->assertTrue(Role::findByName('Administrador', 'web')->hasPermissionTo('maintenance.plant.manage'));
         $this->assertTrue(Role::findByName('Administrador', 'web')->hasPermissionTo('maintenance.track.manage'));

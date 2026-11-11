@@ -565,3 +565,16 @@ No se crean, cierran, recalculan ni eliminan Periodos automáticamente al cambia
 No cambia la migración MV-029 ni agrega columnas/índices. `MaintenancePeriodLifecycle` abre con estado Open, creador autenticado y fechas validadas; cierra únicamente Approved → Closed con `closed_at` y `updated_at`, conservando la identidad y los demás hitos. Los solapamientos, vigencia, duración/anclaje/continuidad quincenales se validan en la operación bajo bloqueo del Servicio, no con una restricción SQL sobre intervalos.
 
 Las frecuencias weekly/monthly/none admiten fechas manuales y huecos dentro de vigencia. Biweekly exige 15 días inclusivos y secuencia desde el inicio del Servicio. Último parcial y correcciones históricas siguen pendientes. `performUpdate` impide persistir cambios en filas Closed incluso desde objetos antiguos, leyendo el estado actual con lock. El borrado Eloquent y las FKs restrictivas de MV-029 se conservan. SQL directo y escrituras masivas no ejecutan estas validaciones; no deben usarse como frontera de operaciones funcionales.
+
+## MV-031 — `maintenance_activity_categories` — 2026-11-11
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | BIGINT UNSIGNED | PK |
+| `name` | VARCHAR(100) | Obligatorio, único global, espacios exteriores normalizados |
+| `description` | TEXT NULL | Opcional |
+| `active` | BOOLEAN DEFAULT TRUE | Inactividad lógica; no elimina histórico |
+| `sort_order` | UNSIGNED INT DEFAULT 0 | Entero no negativo para orden estable |
+| `created_at`, `updated_at` | TIMESTAMP NULL | Timestamps convencionales |
+
+Modelo: `App\Models\MaintenanceActivityCategory`; factory solo para pruebas. La Policy usa permisos separados de catálogo. El Resource consulta activos ordenados para Supervisores, permite gestión administrativa a Administrador/Jefe y no expone eliminación. No existe FK todavía porque las actividades/tipos/programas se implementarán en módulos posteriores; no se inventa una relación global con Servicios o Periodos.

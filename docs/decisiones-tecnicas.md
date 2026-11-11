@@ -640,3 +640,13 @@ Responsable funcional: usuario responsable del proyecto. Implementación: Codex.
 - Protección del modelo: `performUpdate` bloquea y consulta el estado persistido antes del UPDATE; rechaza guardar modificaciones sobre Closed incluso desde instancias antiguas o mediante `saveQuietly`. No es un trigger: SQL directo, Query Builder y actualizaciones masivas pueden omitir estas reglas. Los futuros puntos de entrada deben usar las operaciones controladas y el actor autenticado, nunca aceptar su identidad del navegador.
 
 Pendientes conservados: último corte parcial, corrección histórica/reapertura, cambios de periodicidad/anclaje con periodos existentes, generación automática, aprobación/envío/revisión funcional, reporte e inventario final. MV-030 no corrige registros existentes ni anticipa esos módulos.
+
+## MV-031 — catálogo global de categorías de actividad — 2026-11-11
+
+Responsable funcional: usuario responsable del proyecto. Se confirma que únicamente los roles `Administrador` y `Jefe de supervisores` administran el catálogo global: crear, editar, activar y desactivar. El `Supervisor` puede consultar únicamente categorías activas para usarlas en operaciones. `maintenance.activity.update` no concede administración del catálogo.
+
+Se agregan permisos Spatie separados: `maintenance.activity-category.view`, `maintenance.activity-category.create` y `maintenance.activity-category.update`. Los tres roles reciben consulta; solo Administrador y Jefe reciben creación/actualización. La Policy y el Resource validan estos permisos en servidor; ocultar acciones no es la frontera de seguridad. No se modifica la matriz de permisos de captura/actualización de actividades.
+
+La tabla `maintenance_activity_categories` usa `name` VARCHAR(100) único, `description` opcional, `active` booleano por defecto verdadero y `sort_order` entero no negativo por defecto cero. La fuente v1.1 documenta directamente `name` y `active`; `description` y `sort_order` se incorporan por la solicitud MV-031 como extensión explícita de administración, sin crear código, unidad, ubicación ni comportamiento de inventario. El modelo normaliza espacios exteriores, ofrece consulta activa ordenada y rechaza eliminación física para conservar referencias históricas futuras.
+
+Las categorías son globales y reutilizables; no se vinculan todavía a Servicios, Periodos, Supervisores, actividades ejecutadas ni programas. La planificación de cada Servicio se implementará posteriormente y podrá referenciarlas sin imponer actividades a otros Servicios. P-01 (subopciones) y las decisiones de tipos/unidad/ubicación/inventario siguen pendientes y fuera de MV-031.

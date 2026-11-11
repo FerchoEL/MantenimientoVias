@@ -80,3 +80,9 @@ Reglas confirmadas expresamente por el responsable del proyecto:
 - Apertura/cierre son transaccionales y revalidan dentro del bloqueo del Servicio. No aprueban, habilitan captura, generan periodos siguientes, consolidan inventarios ni emiten reportes.
 
 Esta sección precisa los pendientes históricos de MV-029; siguen pendientes los cortes parciales, correcciones/reapertura y cambios de frecuencia/anclaje sobre histórico. Implementación y límites técnicos: decisiones-tecnicas, sección MV-030.
+
+## MV-031 — categorías de actividad — 2026-11-11
+
+El catálogo global permite reutilizar una categoría entre Servicios sin compartir ni generar automáticamente su planificación. Administrador y Jefe de supervisores pueden crear, consultar, editar, activar y desactivar; Supervisor solo consulta categorías activas. Los permisos son específicos del catálogo (`maintenance.activity-category.view/create/update`), y los permisos de captura de actividades no sustituyen esa autorización.
+
+El nombre es obligatorio, se recortan espacios exteriores, admite hasta 100 caracteres y es único a nivel global. Descripción es opcional; el orden es entero no negativo. Las categorías inactivas se conservan para histórico y no aparecen en la consulta operativa del Supervisor. La aplicación no ofrece eliminación física. No se crean relaciones con Periodos ni actividades hasta sus módulos respectivos.
