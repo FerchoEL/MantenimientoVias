@@ -1355,3 +1355,67 @@ No se ejecutaron pruebas funcionales contra MariaDB ni navegador real; las inter
 Pendientes funcionales preservados: excepción de consulta histórica tras vencer, contención por fechas del Servicio, gestión/auditoría de asignaciones y reglas de futuras operaciones/Periodos. Mientras no se apruebe excepción, el histórico se conserva pero el Supervisor necesita asignación vigente para consultarlo. No hay selección de Servicio en sesión ni administración de asignaciones.
 
 Commit propuesto (no ejecutado): `feat: aplicar autorizacion por servicio vigente MV-027`.
+
+## MV-028 — escenarios simultáneos entre Plantas — 2026-11-10
+
+Solicitud: «KP GROUP — MV-028 — Servicios y programa — Probar escenarios simultáneos entre plantas». Responsable funcional: usuario responsable del proyecto. Verificación: Codex. Alcance: integración y regresión de MV-022…027, sin nuevas reglas ni módulos.
+
+### Inspección y preparación
+
+- Rama `main`, HEAD inicial `d80d26de826833732e29e1f3136160a8dfff1894` (MV-027), árbol limpio. No se comprobó publicación remota ni se ejecutaron pull, reset, checkout, commit o push.
+- Revisados AGENTS.md, PLANS.md, reglas de dominio/índice, planificación e índice Gantt, arquitectura, modelo de datos, reglas de negocio, decisiones MV-025…027 y estado. El Gantt sitúa MV-028 el 10/11/2026; no se modificó su avance ni planificación.
+- Inspeccionados `currentFor`, `visibleTo`, Policy, transiciones, Resource/tabla/vista, relaciones, factories y cobertura existente. Se reutilizan las pruebas de permisos, vigencia, estados, identificadores, acciones y revocación de MV-026/MV-027, sin copiarlas.
+- PHP 8.3.30, Composer 2.10.3, Laravel 13.38.0, Filament 5.10.3, Spatie Permission 8.3.2, PHPUnit 12.5.40 y Boost 2.10.3. MCP disponible, configuración con caché en memoria; consulta oficial Boost sobre filtros y reloj de pruebas.
+- `php artisan config:show app.timezone --no-interaction` confirmó **UTC**. Reloj fijado en 2026-11-10 12:00:00 UTC y avanzado explícitamente donde corresponde. Laravel limpia Carbon/CarbonImmutable al finalizar cada prueba mediante su ciclo de teardown; no se modifica la zona horaria.
+- El nuevo fixture utiliza factories existentes: dos Clientes, Plantas A/B del primero y C del segundo, tres Servicios por Planta (A1…C3), dos Supervisores con conjuntos parcialmente compartidos y usuarios Administrador/Jefe. Las pruebas existentes aportan usuarios sin rol o permiso. Fechas y nombres de escenario explícitos; IDs obtenidos de los modelos, sin depender de valores fijos ni datos reales.
+- `DatabaseTestCase` verifica configuración testing/sqlite/:memory:, ausencia de DB_URL, PDO sqlite, archivo vacío en `PRAGMA database_list` y FKs activas **antes de migrar**. Se mantiene ese bloqueo; no se alteró configuración de pruebas.
+
+### Matriz de evidencia
+
+Abreviaturas de clases: **S** = `tests/Feature/MaintenanceServiceSimultaneityTest.php` (nuevo), **A** = `tests/Feature/MaintenanceServiceAuthorizationTest.php`, **R** = `tests/Feature/MaintenanceServiceResourceTest.php`, **M** = `tests/Feature/Models/MaintenanceServiceSupervisorTest.php`. Los nombres siguientes omiten solo el prefijo `test_`.
+
+| Escenario | Resultado esperado y obtenido | Prueba que aporta evidencia |
+|---|---|---|
+| Varias Plantas del mismo Cliente, distintos Clientes y varios Servicios de una Planta | Supervisor 1 obtiene exactamente A1/A2/B1/C1; Supervisor 2 exactamente A2/C1/C2 | S `partially_shared_sets_remain_exact_across_plants_clients_and_direct_urls` |
+| Dos Supervisores y conjuntos parcialmente compartidos | A2/C1 accesibles por ambos; exclusivos aislados; asignación de otro usuario no extiende alcance | S `partially_shared_sets_remain_exact_across_plants_clients_and_direct_urls` |
+| Solapamientos, fin nulo y varias filas válidas del mismo par | Coexistencia permitida y conjuntos exactos sin duplicados en tabla ni scope | S `partially_shared_sets_remain_exact_across_plants_clients_and_direct_urls`; M `multiple_services_plants_and_overlapping_assignments_are_allowed` |
+| Servicios ajenos en Planta/Cliente con otros autorizados | Cada URL autorizada responde 200 y cada ID restante 404, sin nombre del Servicio ajeno | S `partially_shared_sets_remain_exact_across_plants_clients_and_direct_urls` |
+| Búsqueda, filtros, navegación y búsqueda global | Conjunto A1/B1; buscar A2 o filtrar C devuelve vacío; reset restaura A1/B1; opciones solo Cliente Uno y Plantas A/B | S `search_filters_and_navigation_never_expand_the_assigned_set` |
+| Desactivar una asignación | A1 pierde acceso en pantalla abierta; B1/C1 conservan acceso; fechas e histórico permanecen | S `deactivation_and_midnight_change_only_the_corresponding_service_access` |
+| Fin inclusivo, un día, asignación futura y cambio de día UTC | B1 accesible hasta 23:59:59; a medianoche queda fuera y A2 comienza; C1 continúa; filas no cambian por el reloj | S `deactivation_and_midnight_change_only_the_corresponding_service_access`; A `day_boundaries_use_application_timezone_without_browser_date_override` |
+| Historial repetido y continuidad con otra asignación válida | Deshabilitar una fila vigente conserva A1 por la segunda; perder la última lo excluye; siguiente intervalo lo habilita sin borrar las seis filas | S `repeated_intervals_keep_access_until_the_last_valid_assignment_ends` |
+| Condiciones repartidas y OR de fin nulo | Ninguna combinación entre filas/usuarios/Servicios concede acceso si no hay una fila válida | A `conditions_cannot_be_combined_across_assignments_users_or_services`; `policy_and_query_enforce_same_inclusive_assignment` |
+| Admin/Jefe y permisos/roles | Ambos ven los nueve Servicios; conservar permisos y precedencia sigue siendo obligatorio; sin rol/permiso no hay acceso | S `partially_shared_sets_remain_exact_across_plants_clients_and_direct_urls`; A `administrative_roles_take_precedence_and_still_need_permissions`; `assignment_without_permission_or_supervisor_role_never_grants_access` |
+| Supervisor sin administración e identificadores Livewire alterados | Crear/editar/borrar/transicionar denegados; record bloqueado y recordKey ajeno fuera del alcance | A `supervisor_cannot_administer_even_with_manage_permission_and_assignment`; `browser_cannot_replace_locked_record_on_open_page`; `global_search_filters_and_tampered_identifiers_do_not_reveal_foreign_data` |
+| Revocación de rol/permiso mientras hay pantalla abierta | Siguiente petición protegida denegada; histórico conservado | A `open_page_reauthorizes_on_next_livewire_request`; R `write_actions_reauthorize_after_role_revocation` |
+| Consulta frente a operación en planned/active/completed/cancelled | Consulta con asignación vigente en todos; precondición operativa solo active y con permiso | A `read_access_is_separate_from_new_operation_prerequisites` |
+| Finalizar o cancelar un Servicio de otra Planta | A1 pasa de active al destino mediante acción real del Jefe; las asignaciones permanecen idénticas; consulta continúa; operación A1 denegada y C1 permitida, sin alterar C1 | S `terminal_transition_preserves_assignments_and_other_plant_operations`, datasets complete/cancel |
+
+Las comprobaciones de tabla comparan listas completas de IDs ordenados, sin aplicar unique; detectan tanto faltantes/sobrantes como duplicados. La búsqueda global compara URLs exactas ligadas a esos IDs. Las transiciones nuevas preparan Servicios con `planned → active` mediante MV-024 y ejecutan `completeService`/`cancelService` por Livewire; no fuerzan estados terminales en fixtures.
+
+### Archivos, defectos y límites
+
+- Creado únicamente `tests/Feature/MaintenanceServiceSimultaneityTest.php` (cinco métodos, seis casos con el proveedor de finalizar/cancelar).
+- Actualizado únicamente este documento. Sin cambios en producción, migraciones, dependencias, permisos, seeders ni configuración.
+- **No se detectaron defectos funcionales reproducibles** en esta verificación. La primera ejecución obtuvo 5/6 casos aprobados: una aserción comparaba atributos recién creados (`true`) con persistidos (`1`) y distinto orden de claves. Se corrigió la prueba tomando ambos snapshots desde BD; no fue necesario corregir el producto.
+- Pruebas automatizadas HTTP/Livewire/Filament y consultas reales SQLite; **no navegador real ni pruebas contra MariaDB**. No se evaluaron bloqueo/concurrencia entre procesos ni diferencias físicas del motor. Simultaneidad significa vigencias superpuestas y acceso coexistente, no carga concurrente.
+- `operate` solo verifica la precondición disponible; no existe interfaz de captura ni prueba de captura completa. Tampoco se creó administración de asignaciones, rutas o acciones ficticias.
+- Conservados los pendientes: excepción histórica tras vencimiento, contención por fechas del Servicio, auditoría/gestión de asignaciones y reglas particulares de Periodos/captura. No se transforman en reglas aprobadas ni se implementan excepciones.
+- Todas las migraciones/seeders/factories de estas ejecuciones pertenecen a SQLite `:memory:`. **Sin escrituras en MariaDB**, sin modificación de usuarios reales, sin migraciones por aplicar derivadas de MV-028.
+
+### Ejecución final y estado
+
+| Comando ejecutado | Resultado |
+|---|---|
+| `vendor/bin/phpunit tests/Feature/MaintenanceServiceSimultaneityTest.php` | 6 pruebas, 104 aserciones, aprobadas (5,826 s) |
+| `vendor/bin/phpunit tests/Feature/Models/MaintenanceServiceSupervisorTest.php tests/Feature/Models/MaintenanceServiceTest.php tests/Feature/MaintenanceServiceAuthorizationTest.php tests/Feature/MaintenanceServiceResourceTest.php` | 107 pruebas, 480 aserciones, aprobadas (21,363 s) |
+| `vendor/bin/phpunit` | 226 pruebas, 1.297 aserciones, aprobadas (43,539 s) |
+| `vendor/bin/pint --dirty --format agent` | Correcto |
+| `php -l tests/Feature/MaintenanceServiceSimultaneityTest.php` | Sin errores de sintaxis |
+| `git diff --check` | Sin errores |
+
+Resultados finales: **cero fallos y errores; sin advertencias ni pruebas omitidas reportadas por PHPUnit**. Ejecuciones realizadas después del ajuste de snapshots y Pint. La suite completa incluye las seis pruebas nuevas y las regresiones; sus cantidades no deben sumarse como pruebas diferentes.
+
+Estado: **MV-028 terminado verificado en SQLite aislada con HTTP/Livewire**. No se inició MV-029. Sin commit ni push.
+
+Commit propuesto: `test: verificar escenarios simultaneos entre plantas MV-028`.
