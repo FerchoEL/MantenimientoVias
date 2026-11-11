@@ -5,6 +5,7 @@ namespace App\Models;
 use App\MaintenancePeriodStatus;
 use Database\Factories\MaintenancePeriodFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,6 +53,18 @@ class MaintenancePeriod extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(MaintenanceService::class, 'maintenance_service_id');
+    }
+
+    protected function performUpdate(Builder $query): bool
+    {
+        return $this->getConnection()->transaction(function () use ($query): bool {
+            $persisted = $this->newQuery()->whereKey($this->getRawOriginal($this->getKeyName()))->lockForUpdate()->firstOrFail();
+            if ($persisted->status === MaintenancePeriodStatus::Closed) {
+                throw ValidationException::withMessages(['period' => 'No se puede modificar un periodo cerrado.']);
+            }
+
+            return parent::performUpdate($query);
+        });
     }
 
     public function creator(): BelongsTo

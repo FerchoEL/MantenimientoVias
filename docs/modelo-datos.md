@@ -559,3 +559,9 @@ Migración: `2026_11_11_002315_create_maintenance_periods_table.php`. Su timesta
 | Estado del Servicio | No hay bloqueo adicional en este modelo de persistencia; reglas de apertura/operación se aplicarán en su flujo autorizado. Esto no autoriza capturas en planned/completed/cancelled |
 
 No se crean, cierran, recalculan ni eliminan Periodos automáticamente al cambiar Servicio o asignaciones. Cambios posteriores de periodicidad, cortes semanales/mensuales, `none` y último parcial siguen pendientes. El modelo no ejecuta el flujo RC-030: almacenar estados/hitos no equivale a validar transiciones o implementar apertura/cierre.
+
+## MV-030 — comportamiento sobre el esquema de Periodos — 2026-11-11
+
+No cambia la migración MV-029 ni agrega columnas/índices. `MaintenancePeriodLifecycle` abre con estado Open, creador autenticado y fechas validadas; cierra únicamente Approved → Closed con `closed_at` y `updated_at`, conservando la identidad y los demás hitos. Los solapamientos, vigencia, duración/anclaje/continuidad quincenales se validan en la operación bajo bloqueo del Servicio, no con una restricción SQL sobre intervalos.
+
+Las frecuencias weekly/monthly/none admiten fechas manuales y huecos dentro de vigencia. Biweekly exige 15 días inclusivos y secuencia desde el inicio del Servicio. Último parcial y correcciones históricas siguen pendientes. `performUpdate` impide persistir cambios en filas Closed incluso desde objetos antiguos, leyendo el estado actual con lock. El borrado Eloquent y las FKs restrictivas de MV-029 se conservan. SQL directo y escrituras masivas no ejecutan estas validaciones; no deben usarse como frontera de operaciones funcionales.

@@ -67,3 +67,16 @@ Se implementan inicio y fin obligatorios, Servicio y creador existentes, estado 
 Aclaración expresa del responsable para MV-029: **fin ≥ inicio**, admitiendo un día para no quincenales. La regla aprobada de quincenas de 15 días inclusivos desde el inicio del Servicio sigue vigente; su validación de duración/anclaje/continuidad se realizará en **MV-030, al abrir**. MV-029 no genera calendarios ni valida todavía esa política de apertura.
 
 No se deciden reglas generales de solapamiento, huecos, contención al Servicio, últimos cortes parciales, periodicidad none, cortes semanales/mensuales o correcciones históricas. La ausencia de una restricción en persistencia no aprueba la operación. Futuras lecturas y escrituras deben autorizar al Servicio padre conforme a MV-027, exigir permiso de acción y, para nueva operación, estado operativo y reglas particulares. Crear un Periodo o figurar como creador no concede acceso ni asignación.
+
+## MV-030 — apertura y cierre base — 2026-11-11
+
+Reglas confirmadas expresamente por el responsable del proyecto:
+
+- Abrir exige Servicio activo, Cliente activo, permiso `maintenance.period.manage` y acceso al Servicio. Inicio/fin obligatorios, fin ≥ inicio, límites de vigencia respetados. Duplicados y solapamientos inclusivos se rechazan dentro del mismo Servicio; distintos Servicios admiten las mismas fechas.
+- Semanal, mensual y sin reporte admiten fechas manuales, un solo día, duración variable y huecos; no se generan cortes. Quincenal exige exactamente 15 días inclusivos, primer inicio igual al inicio del Servicio y siguientes sin huecos desde el fin anterior + 1 día. No son mitades del mes. Se bloquea todo corte que rebase el fin del Servicio; el último parcial continúa pendiente y no se acorta automáticamente.
+- La apertura registra `open` y al usuario creador; no crea ni cambia asignaciones de Supervisores.
+- Cerrar exige un Periodo `approved` todavía no cerrado, el mismo permiso de gestión y acceso al Servicio. Se admite expresamente aunque el Servicio esté finalizado/cancelado o el Cliente esté inactivo. Esta excepción solo afecta al cierre existente y no elimina el requisito de asignación vigente para Supervisores. La matriz de permisos no cambia: Supervisor no obtiene gestión por defecto.
+- El cierre registra estado `closed` y fecha/hora, conserva aprobación e histórico y rechaza duplicados sin sobrescribir la fecha original. Guardar cambios Eloquent sobre un Periodo cerrado se rechaza, incluso si el objeto fue leído antes del cierre.
+- Apertura/cierre son transaccionales y revalidan dentro del bloqueo del Servicio. No aprueban, habilitan captura, generan periodos siguientes, consolidan inventarios ni emiten reportes.
+
+Esta sección precisa los pendientes históricos de MV-029; siguen pendientes los cortes parciales, correcciones/reapertura y cambios de frecuencia/anclaje sobre histórico. Implementación y límites técnicos: decisiones-tecnicas, sección MV-030.

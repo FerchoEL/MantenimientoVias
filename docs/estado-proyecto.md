@@ -1484,3 +1484,36 @@ CACHE_STORE=array php artisan migrate --database=mariadb --path=database/migrati
 Se verificaron las opciones con `migrate --help` y `migrate:status --help`; los dos comandos anteriores solo se proponen. El repositorio de migraciones MariaDB ya existe según inspecciones previas. No quitar `--pretend` como parte de esta actividad. El `down()` elimina la tabla y sus filas: está definido conforme al patrón de migraciones, pero un rollback sobre datos sería destructivo y no se ejecutó.
 
 Sin commit ni push. Commit propuesto: `feat: modelar periodos de servicio MV-029`.
+
+## MV-030 — apertura y cierre base de Periodos — 2026-11-11
+
+**Estado: Terminado verificado en el alcance aprobado; pendiente de revisión/commit del responsable.** Base inspeccionada: `main`, HEAD `40a828f204ae5d14ce2e9c00c3e9e2a3443ee589`, árbol limpio antes de esta tarea. Solicitud MV-030 y aclaraciones expresas de apertura/cierre recibidas en conversación. Sin commit ni push ejecutados.
+
+**Resultado funcional.** `MaintenancePeriodLifecycle` abre periodos con permiso de gestión, acceso al Servicio, Servicio/Cliente activos, fechas válidas dentro de vigencia y sin solapamientos inclusivos. Creador y estado inicial se fijan en servidor; no hay asignación automática. Weekly/monthly/none admiten fechas manuales, un día y huecos. Biweekly exige 15 días inclusivos anclados al inicio del Servicio, continuidad y límite final; no habilita el último parcial. Cierre solo Approved → Closed, permiso y acceso al Servicio; admite Servicio terminal/Cliente inactivo según excepción confirmada. Conserva aprobación e histórico y rechaza repetición sin cambiar el primer cierre.
+
+Transacciones y bloqueo de fila del Servicio serializan operaciones competidoras. Planta/Cliente usan locks compartidos en apertura; cierre bloquea luego el Periodo. El modelo protege escrituras sobre Closed consultando el estado persistido bajo lock, también frente a un objeto desactualizado. Sin bloqueo global entre Servicios. La frontera debe invocarse de forma autónoma; una transacción externa MariaDB solo se admite con aislamiento de sesión READ COMMITTED, establecido antes de comenzar y sin override por transacción. Esta restricción evita reutilizar instantáneas REPEATABLE READ antiguas; no se altera el aislamiento de la aplicación.
+
+**Archivos:** creados `app/MaintenancePeriodLifecycle.php`, `app/Policies/MaintenancePeriodPolicy.php`, `tests/Feature/MaintenancePeriodLifecycleTest.php`, `tests/Feature/MaintenancePeriodConcurrencyTest.php`, `tests/MariaDbTestCase.php`; modificado `app/Models/MaintenancePeriod.php`. Actualizados estado-proyecto, decisiones-tecnicas, reglas-negocio, arquitectura y modelo-datos. Ninguna migración, dependencia, permiso, ruta, interfaz Filament ni módulo futuro añadido.
+
+| Verificación ejecutada | Resultado final |
+|---|---|
+| `vendor/bin/phpunit tests/Feature/MaintenancePeriodLifecycleTest.php tests/Feature/Models/MaintenancePeriodTest.php` | **85 pruebas, 290 aserciones**, aprobadas; 11,941 s. MV-030: 50 pruebas/185 aserciones; regresión MV-029: 35/105 |
+| `vendor/bin/phpunit` | **311 aprobadas, 1.587 aserciones**, 55,930 s; 319 descubiertas, **8 omitidas** por requerir opt-in MariaDB |
+| `MV030_MARIADB_SOCKET=/tmp/mv030-mariadb-zGlxQv/mysql.sock vendor/bin/phpunit tests/Feature/MaintenancePeriodConcurrencyTest.php` | **8 pruebas, 40 aserciones**, aprobadas; 6,953 s, driver nativo MariaDB; también pasó la ejecución con driver MySQL sobre el mismo motor |
+| `vendor/bin/pint --dirty --format agent` | Aprobado; formato final verificado |
+| `php -l` en los seis archivos PHP creados/modificados | Sin errores |
+| `git diff --check` | Sin errores |
+
+**Aislamiento SQLite:** guard original `DatabaseTestCase` y phpunit.xml intactos; configuración y PDO SQLite `:memory:` con FKs comprobados antes de migraciones. La suite completa incluye las regresiones anteriores, sin fallos/errores. Las ocho omisiones normales son exclusivamente los casos MariaDB que sí se ejecutaron por separado; no se contabilizan como evidencia de concurrencia SQLite.
+
+**Evidencia MariaDB:** instancia desechable **10.11.14**, datadir `/tmp/mv030-mariadb-zGlxQv/data`, socket en ese mismo directorio, `@@skip_networking=1`, base exclusiva `mv030_test`. No se usó la conexión operativa. `MariaDbTestCase` exige testing, ruta temporal sin enlaces, datadir exacto, nombre de BD y servidor MariaDB sin red antes de ejecutar `migrate`; no ejecuta migrate:fresh ni borra el esquema. Todos los fixtures/roles migrados pertenecen únicamente a esta instancia aislada. Arranque/conexión requirieron escalación del sandbox para el socket local, autorizada durante la tarea.
+
+Los procesos PHP independientes comprobaron esperas reales mediante INNODB_LOCK_WAITS/INNODB_TRX antes de liberar la transacción competidora: apertura duplicada y solapada rechazadas tras commit; apertura permitida tras rollback; rechazo tras finalizar el Servicio durante la espera; doble cierre conserva timestamp; actualización desactualizada no sobrescribe cierre. Otro Servicio de la **misma Planta/Cliente** confirmó su apertura antes del commit del primero. La octava prueba rechaza una transacción externa con instantánea REPEATABLE READ. Los procesos competidores usan el aislamiento predeterminado del servidor; las transacciones externas del coordinador usan READ COMMITTED conforme al contrato. El sondeo de las tablas de diagnóstico usa intervalos de 200 ms para permitir renovar su caché interna; el resultado exige observar el lock, no solo esperar un tiempo.
+
+Reproducción: provisionar una instancia desechable con `mariadb-install-db --no-defaults --datadir=<directorio>/data --auth-root-authentication-method=normal --skip-test-db`, iniciar `mariadbd --no-defaults` con datadir/socket/pid/log dentro de un directorio privado `/tmp/mv030-mariadb-<sufijo alfanumérico>` y `--skip-networking`; crear solo `mv030_test` mediante ese socket. Ejecutar el comando de PHPUnit anterior sustituyendo el directorio. La cuenta root sin contraseña solo pertenece a ese servidor temporal sin red y con directorio privado; no son credenciales de la aplicación. Apagar al finalizar usando ese mismo socket. Sin variable opt-in, las pruebas se omiten y no intentan conectarse al servidor operativo.
+
+**Límites y pendientes:** último corte parcial, reapertura/correcciones históricas, cambios de frecuencia/anclaje y automatización no implementados; están documentados como pendientes, sin bloquear las operaciones acotadas aprobadas. SQL directo/Query Builder y actualizaciones masivas pueden omitir las reglas del modelo; las futuras interfaces deben usar la frontera de aplicación con usuario autenticado. No se probaron ni desarrollaron captura, evidencias, aprobación funcional, inventario, PDF o envíos. No hubo instalaciones ni migraciones/escrituras sobre datos operativos, ni cambios al Gantt.
+
+La instancia temporal se apagó al terminar mediante su propio socket; el log confirmó `Shutdown complete`. Se conservan los artefactos de diagnóstico en `/tmp`, sin borrar datos ni directorios del proyecto.
+
+Propuesta de commit: `feat(periods): implement controlled opening and base closure (MV-030)`.
