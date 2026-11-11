@@ -578,3 +578,13 @@ Las frecuencias weekly/monthly/none admiten fechas manuales y huecos dentro de v
 | `created_at`, `updated_at` | TIMESTAMP NULL | Timestamps convencionales |
 
 Modelo: `App\Models\MaintenanceActivityCategory`; factory solo para pruebas. La Policy usa permisos separados de catálogo. El Resource consulta activos ordenados para Supervisores, permite gestión administrativa a Administrador/Jefe y no expone eliminación. No existe FK todavía porque las actividades/tipos/programas se implementarán en módulos posteriores; no se inventa una relación global con Servicios o Periodos.
+
+## MV-032 — conceptos, subopciones y unidades — 2026-11-11
+
+| Tabla | Campos principales | Restricciones |
+|---|---|---|
+| `maintenance_activity_concepts` | `maintenance_activity_category_id`, `name` VARCHAR(160), `description`, `active`, `sort_order` | FK restrictiva a categoría; UNIQUE(categoría, nombre) |
+| `maintenance_activity_suboptions` | `maintenance_activity_concept_id`, `name` VARCHAR(160), `description`, `active`, `sort_order` | FK restrictiva a concepto; UNIQUE(concepto, nombre) |
+| `maintenance_units` | `name` VARCHAR(100), `symbol` VARCHAR(20), `description`, `active`, `sort_order` | UNIQUE(name), UNIQUE(symbol) |
+
+Los tres modelos tienen timestamps, cast booleano/entero y callback de validación. La consulta operativa usa scopes `activeOrdered`; Concept y Suboption requieren además categoría/concepto y categoría activos. No se agrega código, relación de unidad al concepto, ubicación ni comportamiento de inventario porque la fuente no fija esas reglas. FKs a catálogos futuros se decidirán en las actividades de planificación/ejecución.

@@ -41,10 +41,10 @@ class TrackCatalogAuthorizationAndResourcesTest extends DatabaseTestCase
         $jefe = Role::findByName('Jefe de supervisores', 'web');
         $supervisor = Role::findByName('Supervisor', 'web');
 
-        $this->assertSame(36, Permission::count());
-        $this->assertCount(36, $admin->permissions);
-        $this->assertCount(36, $jefe->permissions);
-        $this->assertCount(16, $supervisor->permissions);
+        $this->assertSame(45, Permission::count());
+        $this->assertCount(45, $admin->permissions);
+        $this->assertCount(45, $jefe->permissions);
+        $this->assertCount(19, $supervisor->permissions);
         $this->assertTrue($admin->hasPermissionTo('maintenance.track.manage'));
         $this->assertTrue($jefe->hasPermissionTo('maintenance.track-switch.view'));
         $this->assertFalse($supervisor->hasPermissionTo('maintenance.track.view'));

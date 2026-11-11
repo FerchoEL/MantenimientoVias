@@ -86,3 +86,9 @@ Esta sección precisa los pendientes históricos de MV-029; siguen pendientes lo
 El catálogo global permite reutilizar una categoría entre Servicios sin compartir ni generar automáticamente su planificación. Administrador y Jefe de supervisores pueden crear, consultar, editar, activar y desactivar; Supervisor solo consulta categorías activas. Los permisos son específicos del catálogo (`maintenance.activity-category.view/create/update`), y los permisos de captura de actividades no sustituyen esa autorización.
 
 El nombre es obligatorio, se recortan espacios exteriores, admite hasta 100 caracteres y es único a nivel global. Descripción es opcional; el orden es entero no negativo. Las categorías inactivas se conservan para histórico y no aparecen en la consulta operativa del Supervisor. La aplicación no ofrece eliminación física. No se crean relaciones con Periodos ni actividades hasta sus módulos respectivos.
+
+## MV-032 — conceptos, subopciones y unidades — 2026-11-11
+
+Un concepto pertenece a una categoría; una subopción pertenece a un concepto. Las relaciones son jerárquicas y no obligan a que cada concepto tenga subopciones. El mismo nombre puede repetirse en categorías o conceptos distintos, pero no dentro del mismo padre. Conceptos, subopciones y unidades pueden activarse/desactivarse y conservan sus referencias históricas; no se eliminan físicamente.
+
+Administrador y Jefe de supervisores administran los tres catálogos con permisos específicos. Supervisor solo consulta registros activos y no adquiere administración mediante `maintenance.activity.update` ni permisos equivalentes de captura. Las unidades se consultan como catálogo global independiente; no se asignan automáticamente a conceptos ni se crean actividades al registrar cualquiera de estos catálogos.

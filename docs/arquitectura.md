@@ -53,4 +53,10 @@ Invocar como transacción autónoma; si el llamador ya tiene una transacción Ma
 
 La Policy exige permisos específicos `maintenance.activity-category.*` y, para gestión, rol Administrador o Jefe. El modelo protege validación, normalización y eliminación histórica; la base agrega unicidad global de nombre. No se añade relación a programas ni actividades, ni se deriva una planificación compartida.
 
+## MV-032 — catálogos jerárquicos de actividad
+
+Los modelos `MaintenanceActivityConcept` y `MaintenanceActivitySuboption` forman la cadena `Category → Concept → Suboption` mediante FKs restrictivas. `MaintenanceUnit` es un catálogo independiente hasta que se apruebe cómo se selecciona la unidad en la planificación o ejecución. Cada catálogo tiene Resource Filament propio, sin borrado, con consulta activa para Supervisor y gestión completa para Administrador/Jefe.
+
+Las Policies usan permisos separados por catálogo y verifican rol, permiso y estado activo de la cadena para consulta operativa. Los Resources filtran en servidor y sus acciones de activar/desactivar vuelven a autorizar mediante Policy. No se crean programas por Servicio ni relaciones con Periodos, inventarios o actividades ejecutadas.
+
 Pruebas funcionales: `MaintenancePeriodLifecycleTest` sobre SQLite en memoria, con el guard original intacto. Concurrencia: `MaintenancePeriodConcurrencyTest` sobre instancia MariaDB desechable, conexiones en procesos PHP separados y comprobación de esperas reales InnoDB; `MariaDbTestCase` valida socket/directorio/base/servidor sin red antes de migrar. No ejecuta pruebas sobre la conexión operativa; sin opt-in explícito, esos casos se omiten con motivo visible.
